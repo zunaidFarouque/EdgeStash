@@ -1,0 +1,17 @@
+[package]
+name = "edgestash-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "edgestash_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "edgestash-cli"
+path = "src/main.rs"
+
+[dependencies]
+edgestash-ipc = { path = "../edgestash-ipc" }
+serde_json.workspace = true
