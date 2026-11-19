@@ -43,16 +43,16 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::Shell::{
-    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW, Shell_NotifyIconW,
+    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW, Shell_NotifyIconW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CHILDID_SELF, CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
+    AppendMenuW, CHILDID_SELF, CallNextHookEx, ChangeWindowMessageFilterEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
     DeregisterShellHookWindow, DestroyMenu, DestroyWindow, DispatchMessageW, EVENT_OBJECT_DESTROY,
     EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
     EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, FindWindowW,
     GA_ROOT, GWL_EXSTYLE, GWLP_USERDATA, GetAncestor, GetCursorPos, GetMessageW, GetWindowLongPtrW,
     GetWindowRect, HHOOK, HWND_NOTOPMOST, HWND_TOPMOST, IDC_ARROW, IDI_APPLICATION, IsZoomed,
-    KillTimer, LoadCursorW, LoadIconW, MF_CHECKED, MF_SEPARATOR, MF_STRING, MSG, MSLLHOOKSTRUCT,
+    KillTimer, LoadCursorW, LoadIconW, MF_CHECKED, MF_SEPARATOR, MF_STRING, MSG, MSGFLT_ALLOW, MSLLHOOKSTRUCT,
     OBJID_WINDOW, PM_NOREMOVE, PeekMessageW, PostMessageW, PostQuitMessage, RegisterClassW,
     RegisterShellHookWindow, RegisterWindowMessageW, SW_HIDE,
     SW_RESTORE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
@@ -115,6 +115,7 @@ const TIMER_CLOSE_ANIM: usize = 4;
 const TIMER_CHARMS_POLL: usize = 5;
 const TIMER_DIM_FADE: usize = 6;
 const TIMER_ATTENTION_PULSE: usize = 7;
+const TIMER_TRAY_RETRY: usize = 8;
 
 const HOTKEY_STASH_LEFT: i32 = 1;
 const HOTKEY_STASH_RIGHT: i32 = 2;
@@ -1920,6 +1921,7 @@ struct DaemonController {
     hotkeys_enabled: bool,
     edge_triggers_enabled: bool,
     tray_active: bool,
+    tray_retries_remaining: u32,
     should_quit: bool,
 }
 
@@ -2325,8 +2327,7 @@ impl DaemonController {
         // 2. Gesture handling: EdgeBump, CornerSlide, and/or EdgeHover
         let mut any_triggered = false;
         let supports_charms = cfg.gesture_mode == GestureMode::CornerSlide
-            || cfg.gesture_mode == GestureMode::EdgeBump
-            || allows_strip_hover(cfg.gesture_mode);
+            || cfg.gesture_mode == GestureMode::EdgeBump;
 
         if supports_charms {
             for mon in &monitors {
@@ -2412,14 +2413,6 @@ impl DaemonController {
                 }
             }
         } else if allows_strip_hover(cfg.gesture_mode) {
-            let any_armed = self.charms.values().any(DirectedCharmsDetector::is_any_armed);
-            unsafe {
-                if any_armed {
-                    let _ = SetTimer(self.msg_hwnd, TIMER_CHARMS_POLL, 16, None);
-                } else {
-                    let _ = KillTimer(self.msg_hwnd, TIMER_CHARMS_POLL);
-                }
-            }
             // 3. EdgeHover via global mouse observer (works cleanly across all apps/taskbar)
             let mut hovered_target: Option<(String, ScreenEdge)> = None;
             for mon in &monitors {
@@ -3598,6 +3591,17 @@ unsafe extern "system" fn main_wnd_proc(
                         }
                     }
                 }
+                TIMER_TRAY_RETRY => {
+                    if add_tray_icon(ctrl.msg_hwnd) || ctrl.tray_retries_remaining == 0 {
+                        unsafe {
+                            let _ = KillTimer(ctrl.msg_hwnd, TIMER_TRAY_RETRY);
+                        }
+                        ctrl.tray_retries_remaining = 0;
+                        ctrl.tray_active = true;
+                    } else {
+                        ctrl.tray_retries_remaining = ctrl.tray_retries_remaining.saturating_sub(1);
+                    }
+                }
                 _ => {}
             }
             LRESULT(0)
@@ -3618,7 +3622,16 @@ unsafe extern "system" fn main_wnd_proc(
             LRESULT(0)
         }
         msg if msg == WM_TASKBAR_CREATED_MSG.load(Ordering::Relaxed) && msg != 0 => {
-            let _ = add_tray_icon(ctrl.msg_hwnd);
+            if ctrl.tray_active || ctrl.tray_retries_remaining > 0 {
+                if !add_tray_icon(ctrl.msg_hwnd) {
+                    ctrl.tray_retries_remaining = 5;
+                    unsafe {
+                        let _ = SetTimer(ctrl.msg_hwnd, TIMER_TRAY_RETRY, 500, None);
+                    }
+                } else {
+                    ctrl.tray_active = true;
+                }
+            }
             ctrl.engine.reapply_taskbar_deletion();
             LRESULT(0)
         }
@@ -3857,7 +3870,12 @@ fn add_tray_icon(hwnd: HWND) -> bool {
     for (i, ch) in tip.encode_utf16().take(nid.szTip.len() - 1).enumerate() {
         nid.szTip[i] = ch;
     }
-    unsafe { Shell_NotifyIconW(NIM_ADD, &nid).as_bool() }
+    let added = unsafe { Shell_NotifyIconW(NIM_ADD, &nid).as_bool() };
+    if !added {
+        unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid).as_bool() }
+    } else {
+        true
+    }
 }
 
 fn remove_tray_icon(hwnd: HWND) {
@@ -4048,11 +4066,18 @@ pub fn run_daemon_with_options(
         WM_SHELLHOOK_MSG.store(shell_msg, Ordering::Release);
         unsafe {
             let _ = RegisterShellHookWindow(msg_hwnd);
+            let _ = ChangeWindowMessageFilterEx(msg_hwnd, shell_msg, MSGFLT_ALLOW, None);
         }
     }
     let taskbar_msg = unsafe { RegisterWindowMessageW(w!("TaskbarCreated")) };
     if taskbar_msg != 0 {
         WM_TASKBAR_CREATED_MSG.store(taskbar_msg, Ordering::Release);
+        unsafe {
+            let _ = ChangeWindowMessageFilterEx(msg_hwnd, taskbar_msg, MSGFLT_ALLOW, None);
+        }
+    }
+    unsafe {
+        let _ = ChangeWindowMessageFilterEx(msg_hwnd, WM_APP_TRAY, MSGFLT_ALLOW, None);
     }
 
     // Ensure message queue exists before background threads call PostMessageW
@@ -4119,6 +4144,7 @@ pub fn run_daemon_with_options(
         hotkeys_enabled: opts.enable_hotkeys,
         edge_triggers_enabled: opts.enable_edge_triggers,
         tray_active,
+        tray_retries_remaining: 0,
         should_quit: false,
     });
     controller.sync_hotkeys();

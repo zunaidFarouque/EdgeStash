@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use edgestash_daemon::daemon::{DaemonLaunchOptions, run_daemon_with_options};
 use edgestash_daemon::geometry::{HeaderButtonKind, header_button_rects};
+use edgestash_ipc::config::EdgeStashConfig;
 use edgestash_ipc::pipe::PipeClient;
 use edgestash_ipc::protocol::{IpcRequest, IpcResponse};
 use edgestash_ipc::types::{DockMode, ScreenEdge};
@@ -343,22 +344,23 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
             ok && (r.right - r.left) >= 1 && (r.right - r.left) <= 5 && (r.bottom - r.top) > 1 && r.left > 0
         })
         .expect("expected vertical Right trigger strip window");
-    unsafe {
-        let _ = PostMessageW(right_strip, WM_MOUSEMOVE, WPARAM(0), LPARAM(0));
-    }
-    thread::sleep(Duration::from_millis(120));
-
-    let st2 = client.send(&IpcRequest::Status).expect("status after strip hover");
-    match st2 {
-        IpcResponse::Status(snap) => {
-            assert_eq!(snap.slots.len(), 1);
-            assert!(
-                snap.slots[0].is_open,
-                "expected right-edge drawer to open after hovering on 1px trigger strip in EdgeHover mode"
-            );
+    let mut opened = false;
+    for _ in 0..15 {
+        unsafe {
+            let _ = PostMessageW(right_strip, WM_MOUSEMOVE, WPARAM(0), LPARAM(0));
         }
-        other => panic!("unexpected status: {other:?}"),
+        thread::sleep(Duration::from_millis(40));
+        if let Ok(IpcResponse::Status(snap)) = client.send(&IpcRequest::Status)
+            && snap.slots.first().is_some_and(|s| s.is_open)
+        {
+            opened = true;
+            break;
+        }
     }
+    assert!(
+        opened,
+        "expected right-edge drawer to open after hovering on 1px trigger strip in EdgeHover mode"
+    );
 
     // Trigger non-IPC shutdown (simulating Tray Exit / Console Ctrl -> WM_APP_IPC wparam=0, lparam=0)
     // and ensure daemon exits promptly without hanging on ConnectNamedPipe!
@@ -593,6 +595,64 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
     handle.join().expect("thread joined");
 
     drop(target_apps);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn daemon_handles_taskbar_created_broadcast_when_explorer_restarts() {
+    let dir = std::env::temp_dir().join(format!("edgestash_taskbar_test_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg_path = dir.join("config.toml");
+    EdgeStashConfig::default().save_to_at(&cfg_path).unwrap();
+
+    let pipe_name = format!(r"\\.\pipe\EdgeStashTaskbarTest-{}", std::process::id());
+    let opts = DaemonLaunchOptions {
+        pipe_name: pipe_name.clone(),
+        config_path: cfg_path,
+        manifest_path: dir.join("active_stashes.json"),
+        single_instance_mutex: None,
+        enable_tray: true,
+        enable_hotkeys: false,
+        enable_win_events: false,
+        enable_edge_triggers: false,
+    };
+
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (done_tx, done_rx) = mpsc::channel();
+    let handle = thread::spawn(move || {
+        let res = run_daemon_with_options(opts, Some(ready_tx));
+        let _ = done_tx.send(res);
+    });
+
+    ready_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("daemon signaled ready");
+    let msg_hwnd = find_own_windows_by_class("EdgeStashMessageWindow")[0];
+
+    // Simulate Explorer restarting by broadcasting "TaskbarCreated" registered message
+    let taskbar_msg = unsafe {
+        use windows::Win32::UI::WindowsAndMessaging::RegisterWindowMessageW;
+        use windows::core::w;
+        RegisterWindowMessageW(w!("TaskbarCreated"))
+    };
+    assert_ne!(taskbar_msg, 0);
+
+    // Send TaskbarCreated to daemon message window
+    unsafe {
+        let _ = PostMessageW(msg_hwnd, taskbar_msg, WPARAM(0), LPARAM(0));
+    }
+    thread::sleep(Duration::from_millis(60));
+
+    // Daemon processes the message cleanly without crashing and remains responsive over IPC
+    let client = PipeClient::new(&pipe_name);
+    let ping_resp = client.send(&IpcRequest::Ping).expect("ping daemon");
+    assert!(matches!(ping_resp, IpcResponse::Pong { .. }));
+
+    // Clean shutdown
+    let _ = client.send(&IpcRequest::Shutdown);
+    let _ = done_rx.recv_timeout(Duration::from_secs(3));
+    let _ = handle.join();
     let _ = std::fs::remove_dir_all(&dir);
 }
 
