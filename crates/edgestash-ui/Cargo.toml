@@ -16,5 +16,5 @@ test = false
 [dependencies]
 edgestash-ipc = { path = "../edgestash-ipc" }
 eframe = "0.31"
-egui = "0.31"
+egui = "0.37"
 windows.workspace = true
