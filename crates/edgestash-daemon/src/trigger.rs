@@ -92,21 +92,38 @@ impl CharmsStateMachine {
     }
 }
 
-fn is_in_bezel_corridor(rect: Rect, edge: ScreenEdge, thickness_px: i32, cursor: (i32, i32)) -> bool {
+fn is_in_bezel_corridor(
+    rect: Rect,
+    edge: ScreenEdge,
+    thickness_px: i32,
+    cursor: (i32, i32),
+) -> bool {
     let (x, y) = cursor;
     let b = 16; // 16px outer bezel overshoot tolerance for physical display edges / cursor pushing
     match edge {
         ScreenEdge::Left => {
-            x >= rect.left - b && x <= rect.left + thickness_px && y >= rect.top - b && y <= rect.bottom + b
+            x >= rect.left - b
+                && x <= rect.left + thickness_px
+                && y >= rect.top - b
+                && y <= rect.bottom + b
         }
         ScreenEdge::Right => {
-            x >= rect.right - thickness_px && x <= rect.right + b && y >= rect.top - b && y <= rect.bottom + b
+            x >= rect.right - thickness_px
+                && x <= rect.right + b
+                && y >= rect.top - b
+                && y <= rect.bottom + b
         }
         ScreenEdge::Top => {
-            y >= rect.top - b && y <= rect.top + thickness_px && x >= rect.left - b && x <= rect.right + b
+            y >= rect.top - b
+                && y <= rect.top + thickness_px
+                && x >= rect.left - b
+                && x <= rect.right + b
         }
         ScreenEdge::Bottom => {
-            y >= rect.bottom - thickness_px && y <= rect.bottom + b && x >= rect.left - b && x <= rect.right + b
+            y >= rect.bottom - thickness_px
+                && y <= rect.bottom + b
+                && x >= rect.left - b
+                && x <= rect.right + b
         }
     }
 }
@@ -245,10 +262,12 @@ fn is_in_edge_corner(rect: Rect, edge: ScreenEdge, c: i32, cursor: (i32, i32)) -
     let b = 4;
     match edge {
         ScreenEdge::Left | ScreenEdge::Right => {
-            (y >= rect.top - b && y <= rect.top + c) || (y >= rect.bottom - c && y <= rect.bottom + b)
+            (y >= rect.top - b && y <= rect.top + c)
+                || (y >= rect.bottom - c && y <= rect.bottom + b)
         }
         ScreenEdge::Top | ScreenEdge::Bottom => {
-            (x >= rect.left - b && x <= rect.left + c) || (x >= rect.right - c && x <= rect.right + b)
+            (x >= rect.left - b && x <= rect.left + c)
+                || (x >= rect.right - c && x <= rect.right + b)
         }
     }
 }
@@ -455,7 +474,8 @@ impl DirectedZoneMachine {
     ) -> bool {
         let rect = monitor.rect;
         let edge = zone.edge();
-        let slide_corridor_px = (self.corner_size_px * 4).clamp(Self::CORRIDOR_MIN_PX, Self::CORRIDOR_MAX_PX);
+        let slide_corridor_px =
+            (self.corner_size_px * 4).clamp(Self::CORRIDOR_MIN_PX, Self::CORRIDOR_MAX_PX);
         let along_bezel = if edge.is_vertical_edge() {
             cursor.1
         } else {
@@ -730,8 +750,7 @@ impl EdgeBumpStateMachine {
     ) -> bool {
         let in_hit_zone =
             is_in_bezel_corridor(monitor.rect, edge, Self::INITIAL_HIT_ZONE_PX, cursor);
-        let in_push_band =
-            is_in_bezel_corridor(monitor.rect, edge, Self::PUSH_BAND_PX, cursor);
+        let in_push_band = is_in_bezel_corridor(monitor.rect, edge, Self::PUSH_BAND_PX, cursor);
 
         match self.phase {
             BumpPhase::Outside => {
@@ -1010,7 +1029,10 @@ pub fn detect_drag_drop_zone_ext(
         }
 
         // 4. Bottom edge corners (BottomLeftRight, BottomRightLeft)
-        if is_edge_enabled(ScreenEdge::Bottom) && y >= r.bottom - c_span - ins && y <= r.bottom - ins {
+        if is_edge_enabled(ScreenEdge::Bottom)
+            && y >= r.bottom - c_span - ins
+            && y <= r.bottom - ins
+        {
             if x >= r.left + ins && x <= r.left + c_span + ins {
                 return Some(DragDropTarget::Corner {
                     monitor_id: mon.id.clone(),
@@ -1096,10 +1118,30 @@ pub fn compute_edge_band_rect_inset(
     let band_depth = edge_zone_px.max(corner_span_px);
     let ins = inset_px.max(0);
     match edge {
-        ScreenEdge::Left => Rect::new(r.left + ins, r.top + ins, r.left + band_depth + ins, r.bottom - ins),
-        ScreenEdge::Right => Rect::new(r.right - band_depth - ins, r.top + ins, r.right - ins, r.bottom - ins),
-        ScreenEdge::Top => Rect::new(r.left + ins, r.top + ins, r.right - ins, r.top + band_depth + ins),
-        ScreenEdge::Bottom => Rect::new(r.left + ins, r.bottom - band_depth - ins, r.right - ins, r.bottom - ins),
+        ScreenEdge::Left => Rect::new(
+            r.left + ins,
+            r.top + ins,
+            r.left + band_depth + ins,
+            r.bottom - ins,
+        ),
+        ScreenEdge::Right => Rect::new(
+            r.right - band_depth - ins,
+            r.top + ins,
+            r.right - ins,
+            r.bottom - ins,
+        ),
+        ScreenEdge::Top => Rect::new(
+            r.left + ins,
+            r.top + ins,
+            r.right - ins,
+            r.top + band_depth + ins,
+        ),
+        ScreenEdge::Bottom => Rect::new(
+            r.left + ins,
+            r.bottom - band_depth - ins,
+            r.right - ins,
+            r.bottom - ins,
+        ),
     }
 }
 
@@ -1373,7 +1415,11 @@ pub fn is_strip_input_transparent(
     is_open: bool,
     has_slots: bool,
 ) -> bool {
-    if matches!(gesture_mode, GestureMode::EdgeBump | GestureMode::CornerSlide) && !is_open {
+    if matches!(
+        gesture_mode,
+        GestureMode::EdgeBump | GestureMode::CornerSlide
+    ) && !is_open
+    {
         return true;
     }
     if !area_scroll_enabled || !has_slots {
@@ -1382,7 +1428,10 @@ pub fn is_strip_input_transparent(
     match scroll_mode {
         AreaAwareScrollMode::OpenSessionStrict => !is_open,
         AreaAwareScrollMode::InitialTriggerSession | AreaAwareScrollMode::AlwaysOnTriggerLine => {
-            matches!(gesture_mode, GestureMode::EdgeBump | GestureMode::CornerSlide) && !is_open
+            matches!(
+                gesture_mode,
+                GestureMode::EdgeBump | GestureMode::CornerSlide
+            ) && !is_open
         }
     }
 }
@@ -1411,6 +1460,8 @@ pub fn should_pill_be_visible(
 
 /// Returns the bottommost open floating drawer HWND to pass as `hWndInsertAfter` for `dim_scrim`
 /// so the backdrop scrim is atomically ordered beneath open drawers without z-order flashing.
-pub fn compute_dim_scrim_insert_after(open_floating_hwnds: &[WindowHandle]) -> Option<WindowHandle> {
+pub fn compute_dim_scrim_insert_after(
+    open_floating_hwnds: &[WindowHandle],
+) -> Option<WindowHandle> {
     open_floating_hwnds.last().copied()
 }

@@ -42,14 +42,17 @@ impl VirtualDesktopController {
     pub fn get_current_desktop_id(&self) -> Option<GUID> {
         unsafe {
             let fg = GetForegroundWindow();
-            if !fg.0.is_null() && self.is_on_current_desktop(fg)
-                && let Some(id) = self.get_window_desktop_id(fg) {
-                    return Some(id);
-                }
+            if !fg.0.is_null()
+                && self.is_on_current_desktop(fg)
+                && let Some(id) = self.get_window_desktop_id(fg)
+            {
+                return Some(id);
+            }
             if !self.helper_hwnd.0.is_null()
-                && let Some(id) = self.get_window_desktop_id(self.helper_hwnd) {
-                    return Some(id);
-                }
+                && let Some(id) = self.get_window_desktop_id(self.helper_hwnd)
+            {
+                return Some(id);
+            }
             None
         }
     }

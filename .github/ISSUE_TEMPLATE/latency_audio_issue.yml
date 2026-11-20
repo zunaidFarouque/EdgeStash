@@ -1,0 +1,63 @@
+name: Real-Time Audio / DAW / VJ Latency Report
+description: Report audio dropouts, DPC latency spikes, or frame stutter during live performance
+title: "[PERF/LATENCY]: "
+labels: ["performance", "latency"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        EdgeStash is engineered for live music producers, VJs, and real-time audio engineers.
+        We treat any DPC latency spike, audio glitch (buffer underrun), or unexpected thread stall as a high-priority bug.
+
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: Symptoms Observed
+      description: Describe what happened during audio playback or video processing.
+      placeholder: Audio pops/clicks occurred when triggering an edge drawer while Ableton Live was playing...
+    validations:
+      required: true
+
+  - type: input
+    id: host_software
+    attributes:
+      label: Host Software & Audio Engine
+      description: Name of the DAW, VJ software, or real-time application in use.
+      placeholder: Ableton Live 12 Suite / Bitwig / FL Studio / TouchDesigner / Resolume Arena
+    validations:
+      required: true
+
+  - type: input
+    id: audio_interface
+    attributes:
+      label: Audio Interface & Driver Type
+      description: Your hardware audio interface and driver model (ASIO, WASAPI Exclusive, etc.).
+      placeholder: RME Babyface Pro FS (ASIO Driver v1.24)
+    validations:
+      required: true
+
+  - type: input
+    id: buffer_size
+    attributes:
+      label: Audio Buffer Size & Sample Rate
+      description: Lower buffer sizes expose DPC latency issues faster.
+      placeholder: 64 samples @ 48,000 Hz (1.33 ms roundtrip)
+    validations:
+      required: true
+
+  - type: textarea
+    id: latencymon_results
+    attributes:
+      label: LatencyMon / Task Manager Observations
+      description: If you ran LatencyMon, paste the highest reported DPC routine or ISR execution time.
+      placeholder: "Highest reported DPC routine: ..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: context_reproduction
+    attributes:
+      label: Activity During Issue
+      description: Did this happen during mouse movement, drawer animation, window stashing, or while idle?
+    validations:
+      required: true

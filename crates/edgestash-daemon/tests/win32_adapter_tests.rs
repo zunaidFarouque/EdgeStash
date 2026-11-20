@@ -1,6 +1,6 @@
 use edgestash_daemon::dwm::{get_invisible_border_insets, is_window_cloaked, set_window_cloaked};
 use edgestash_daemon::geometry::HeaderButtonKind;
-use edgestash_daemon::platform::win32::{Win32WindowSystem, Win32VirtualDesktop};
+use edgestash_daemon::platform::win32::{Win32VirtualDesktop, Win32WindowSystem};
 use edgestash_daemon::platform::{VirtualDesktopApi, WindowHandle, WindowSystem};
 use edgestash_daemon::renderer::d2d::{D2DGraphicsContext, DrawerHeaderVisual, PillSlotVisual};
 use edgestash_ipc::types::{DockMode, EdgePillStyle};
@@ -107,11 +107,24 @@ fn real_win32_dwm_cloak_and_border_insets_work() {
         )
         .expect("create app test window")
     });
-    let orig_ex = unsafe { windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(app_win.0, windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE) };
-    assert_eq!(orig_ex & (windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW.0 as isize), 0);
+    let orig_ex = unsafe {
+        windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(
+            app_win.0,
+            windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE,
+        )
+    };
+    assert_eq!(
+        orig_ex & (windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW.0 as isize),
+        0
+    );
     sys.prepare_window_for_stash(WindowHandle::from_hwnd(app_win.0), orig_ex)
         .expect("prepare_window_for_stash succeeds");
-    let stashed_ex = unsafe { windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(app_win.0, windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE) };
+    let stashed_ex = unsafe {
+        windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(
+            app_win.0,
+            windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE,
+        )
+    };
     assert_eq!(
         stashed_ex & (windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW.0 as isize),
         0,
@@ -170,10 +183,30 @@ fn real_direct2d_and_directcomposition_pipeline_renders_offscreen() {
         },
     ];
     surface
-        .render_pill(48, 120, EdgePillStyle::AppIconsStack, &slots, 3, 1, None, 1, 1000)
+        .render_pill(
+            48,
+            120,
+            EdgePillStyle::AppIconsStack,
+            &slots,
+            3,
+            1,
+            None,
+            1,
+            1000,
+        )
         .expect("Direct2D AppIconsStack pill render + Present + DComp Commit succeeds");
     surface
-        .render_pill(20, 96, EdgePillStyle::MinimalLine, &slots, 3, 1, None, 1, 1000)
+        .render_pill(
+            20,
+            96,
+            EdgePillStyle::MinimalLine,
+            &slots,
+            3,
+            1,
+            None,
+            1,
+            1000,
+        )
         .expect("Direct2D MinimalLine pill render succeeds");
     surface
         .render_drawer_header(
@@ -200,8 +233,8 @@ fn test_bring_drag_image_to_top_promotes_drag_preview_above_topmost_drawer() {
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyWindow, GW_HWNDNEXT, GetTopWindow, GetWindow,
-        HWND_TOPMOST, RegisterClassW, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_NOMOVE,
-        SWP_NOSIZE, SW_SHOWNA, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOPMOST,
+        HWND_TOPMOST, RegisterClassW, SW_SHOWNA, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+        SetWindowPos, ShowWindow, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOPMOST,
         WS_EX_TRANSPARENT, WS_POPUP,
     };
     use windows::core::w;

@@ -40,9 +40,18 @@ pub fn header_button_rects(width: i32, height: i32) -> [(HeaderButtonKind, Rect)
     let close_left = close_right - btn_w;
 
     [
-        (HeaderButtonKind::Close, Rect::new(close_left, top, close_right, bottom)),
-        (HeaderButtonKind::Unstash, Rect::new(unstash_left, top, unstash_right, bottom)),
-        (HeaderButtonKind::Pin, Rect::new(pin_left, top, pin_right, bottom)),
+        (
+            HeaderButtonKind::Close,
+            Rect::new(close_left, top, close_right, bottom),
+        ),
+        (
+            HeaderButtonKind::Unstash,
+            Rect::new(unstash_left, top, unstash_right, bottom),
+        ),
+        (
+            HeaderButtonKind::Pin,
+            Rect::new(pin_left, top, pin_right, bottom),
+        ),
     ]
 }
 
@@ -262,7 +271,11 @@ pub fn compute_tiled_group_rects(
 }
 
 /// Computes the off-bezel visible origin for sliding into/out of `target_rect`.
-pub fn compute_offbezel_origin(monitor: &MonitorInfo, edge: ScreenEdge, target_rect: Rect) -> (i32, i32) {
+pub fn compute_offbezel_origin(
+    monitor: &MonitorInfo,
+    edge: ScreenEdge,
+    target_rect: Rect,
+) -> (i32, i32) {
     let work = monitor.work_rect;
     match edge {
         ScreenEdge::Left => (work.left - target_rect.width(), target_rect.top),

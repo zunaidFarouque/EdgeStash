@@ -3,35 +3,32 @@ use std::collections::HashMap;
 use std::mem::size_of;
 
 use edgestash_ipc::types::{AnimationStyle, Rect, ScreenEdge};
-use windows::Win32::Foundation::{
-    BOOL, CloseHandle, HWND, LPARAM, POINT, RECT, WPARAM,
-};
-use windows::Win32::System::Threading::{
-    OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
-    QueryFullProcessImageNameW,
-};
+use windows::Win32::Foundation::{BOOL, CloseHandle, HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW,
-    MonitorFromWindow, MONITOR_DEFAULTTONEAREST,
-    RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE, RDW_UPDATENOW, RedrawWindow,
+    EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MONITORINFO,
+    MONITORINFOEXW, MonitorFromWindow, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
+    RDW_UPDATENOW, RedrawWindow,
 };
 use windows::Win32::System::Com::{CLSCTX_ALL, CoCreateInstance};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Threading::{
+    OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+};
 use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::Shell::{
     ITaskbarList, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
     SHQueryUserNotificationState, TaskbarList,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, FindWindowExW, GA_ROOT, GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE, GetAncestor,
-    GetClassNameW, GetCursorPos, GetDesktopWindow, GetForegroundWindow, GetParent, GetShellWindow,
-    GetTopWindow, GetWindowLongPtrW, GetWindowPlacement, GetWindowRect, GetWindowThreadProcessId, HWND_NOTOPMOST,
-    HWND_TOPMOST, IsIconic, IsWindow, IsWindowVisible, IsZoomed, MONITORINFOF_PRIMARY, PostMessageW,
-    SC_MAXIMIZE, SC_MINIMIZE, SMTO_ABORTIFHUNG, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE,
-    SendMessageTimeoutW, SetWindowLongPtrW, SetWindowPlacement, SetWindowPos, ShowWindow,
-    WINDOWPLACEMENT, WM_CLOSE, WM_GETTEXT, WM_SYSCOMMAND, WS_CAPTION, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+    CreateWindowExW, DestroyWindow, FindWindowExW, GA_ROOT, GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE,
+    GetAncestor, GetClassNameW, GetCursorPos, GetDesktopWindow, GetForegroundWindow, GetParent,
+    GetShellWindow, GetTopWindow, GetWindowLongPtrW, GetWindowPlacement, GetWindowRect,
+    GetWindowThreadProcessId, HWND_NOTOPMOST, HWND_TOPMOST, IsIconic, IsWindow, IsWindowVisible,
+    IsZoomed, MONITORINFOF_PRIMARY, PostMessageW, SC_MAXIMIZE, SC_MINIMIZE, SMTO_ABORTIFHUNG,
+    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageTimeoutW, SetWindowLongPtrW,
+    SetWindowPlacement, SetWindowPos, ShowWindow, WINDOWPLACEMENT, WM_CLOSE, WM_GETTEXT,
+    WM_SYSCOMMAND, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 use windows::core::{GUID, PCWSTR, Result, w};
 
@@ -114,9 +111,10 @@ impl Win32WindowSystem {
         if slot.is_none() {
             unsafe {
                 if let Ok(tbl) = CoCreateInstance::<_, ITaskbarList>(&TaskbarList, None, CLSCTX_ALL)
-                    && tbl.HrInit().is_ok() {
-                        *slot = Some(tbl);
-                    }
+                    && tbl.HrInit().is_ok()
+                {
+                    *slot = Some(tbl);
+                }
             }
         }
         if let Some(tbl) = slot.as_ref() {
@@ -131,14 +129,8 @@ impl Win32WindowSystem {
 pub fn bring_drag_image_to_top() {
     let mut current = HWND::default();
     for _ in 0..8 {
-        let found = unsafe {
-            FindWindowExW(
-                HWND::default(),
-                current,
-                w!("SysDragImage"),
-                PCWSTR::null(),
-            )
-        };
+        let found =
+            unsafe { FindWindowExW(HWND::default(), current, w!("SysDragImage"), PCWSTR::null()) };
         match found {
             Ok(h) if !h.0.is_null() => {
                 let is_already_top = unsafe { GetTopWindow(HWND::default()) == Ok(h) };
@@ -186,7 +178,10 @@ impl WindowSystem for Win32WindowSystem {
         !hwnd.is_null() && unsafe { IsWindowVisible(hwnd.to_hwnd()).as_bool() }
     }
 
-    fn snapshot_window(&self, hwnd: WindowHandle) -> std::result::Result<WindowSnapshot, WindowAccessError> {
+    fn snapshot_window(
+        &self,
+        hwnd: WindowHandle,
+    ) -> std::result::Result<WindowSnapshot, WindowAccessError> {
         let raw = hwnd.to_hwnd();
         if hwnd.is_null() || unsafe { !IsWindow(raw).as_bool() } {
             return Err(WindowAccessError::InvalidWindow);
@@ -343,7 +338,11 @@ impl WindowSystem for Win32WindowSystem {
     ) {
         let raw = hwnd.to_hwnd();
         let was_topmost = (original_ex_style & (WS_EX_TOPMOST.0 as isize)) != 0;
-        let insert_after = if was_topmost { HWND_TOPMOST } else { HWND_NOTOPMOST };
+        let insert_after = if was_topmost {
+            HWND_TOPMOST
+        } else {
+            HWND_NOTOPMOST
+        };
         unsafe {
             let _ = set_window_cloaked(raw, false);
             SetWindowLongPtrW(raw, GWL_EXSTYLE, original_ex_style);
@@ -368,25 +367,23 @@ impl WindowSystem for Win32WindowSystem {
                 }
                 self.refresh_window_rendering(hwnd);
             }
-            UnstashTargetState::Minimize => {
-                unsafe {
-                    let mut wp = WINDOWPLACEMENT {
-                        length: size_of::<WINDOWPLACEMENT>() as u32,
-                        ..Default::default()
+            UnstashTargetState::Minimize => unsafe {
+                let mut wp = WINDOWPLACEMENT {
+                    length: size_of::<WINDOWPLACEMENT>() as u32,
+                    ..Default::default()
+                };
+                if GetWindowPlacement(raw, &mut wp).is_ok() {
+                    wp.rcNormalPosition = RECT {
+                        left: original_rect.left,
+                        top: original_rect.top,
+                        right: original_rect.right,
+                        bottom: original_rect.bottom,
                     };
-                    if GetWindowPlacement(raw, &mut wp).is_ok() {
-                        wp.rcNormalPosition = RECT {
-                            left: original_rect.left,
-                            top: original_rect.top,
-                            right: original_rect.right,
-                            bottom: original_rect.bottom,
-                        };
-                        let _ = SetWindowPlacement(raw, &wp);
-                    }
-                    let _ = ShowWindow(raw, SW_MINIMIZE);
-                    let _ = PostMessageW(raw, WM_SYSCOMMAND, WPARAM(SC_MINIMIZE as usize), LPARAM(0));
+                    let _ = SetWindowPlacement(raw, &wp);
                 }
-            }
+                let _ = ShowWindow(raw, SW_MINIMIZE);
+                let _ = PostMessageW(raw, WM_SYSCOMMAND, WPARAM(SC_MINIMIZE as usize), LPARAM(0));
+            },
             UnstashTargetState::Maximize => {
                 unsafe {
                     let mut wp = WINDOWPLACEMENT {
@@ -403,7 +400,8 @@ impl WindowSystem for Win32WindowSystem {
                         let _ = SetWindowPlacement(raw, &wp);
                     }
                     let _ = ShowWindow(raw, SW_MAXIMIZE);
-                    let _ = PostMessageW(raw, WM_SYSCOMMAND, WPARAM(SC_MAXIMIZE as usize), LPARAM(0));
+                    let _ =
+                        PostMessageW(raw, WM_SYSCOMMAND, WPARAM(SC_MAXIMIZE as usize), LPARAM(0));
                 }
                 self.refresh_window_rendering(hwnd);
             }
@@ -412,7 +410,11 @@ impl WindowSystem for Win32WindowSystem {
 
     fn set_window_topmost(&self, hwnd: WindowHandle, topmost: bool) {
         let raw = hwnd.to_hwnd();
-        let insert_after = if topmost { HWND_TOPMOST } else { HWND_NOTOPMOST };
+        let insert_after = if topmost {
+            HWND_TOPMOST
+        } else {
+            HWND_NOTOPMOST
+        };
         unsafe {
             let _ = SetWindowPos(
                 raw,
@@ -594,7 +596,8 @@ impl WindowSystem for Win32WindowSystem {
                 let id = String::from_utf16_lossy(&info.szDevice[..name_end]);
                 let mut dpi_x = 96u32;
                 let mut dpi_y = 96u32;
-                let _ = unsafe { GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
+                let _ =
+                    unsafe { GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
                 out.push(MonitorInfo {
                     id,
                     rect: info.monitorInfo.rcMonitor.into(),
@@ -625,9 +628,9 @@ impl WindowSystem for Win32WindowSystem {
                 && (quns == QUNS_BUSY
                     || quns == QUNS_RUNNING_D3D_FULL_SCREEN
                     || quns == QUNS_PRESENTATION_MODE)
-                {
-                    return true;
-                }
+            {
+                return true;
+            }
 
             let fg = GetForegroundWindow();
             if fg.0.is_null() || fg == GetShellWindow() || fg == GetDesktopWindow() {
@@ -723,9 +726,10 @@ impl Win32AppBar {
     fn ensure_helper_hwnd(&self, monitor_id: &str, edge: ScreenEdge) -> HWND {
         let key = (monitor_id.to_string(), edge);
         if let Some(&existing) = self.helpers.borrow().get(&key)
-            && !existing.0.is_null() {
-                return existing;
-            }
+            && !existing.0.is_null()
+        {
+            return existing;
+        }
         let hinst: Option<windows::Win32::Foundation::HINSTANCE> =
             unsafe { GetModuleHandleW(None).ok().map(|h| h.into()) };
         if let Some(inst) = hinst
@@ -744,10 +748,11 @@ impl Win32AppBar {
                     inst,
                     None,
                 )
-            } {
-                self.helpers.borrow_mut().insert(key, hwnd);
-                return hwnd;
             }
+        {
+            self.helpers.borrow_mut().insert(key, hwnd);
+            return hwnd;
+        }
         self.fallback_hwnd
     }
 }
@@ -788,7 +793,8 @@ impl AppBarApi for Win32AppBar {
             let removed = self.helpers.borrow_mut().remove(&key);
             let hwnd = removed.unwrap_or(self.fallback_hwnd);
             if !hwnd.0.is_null() {
-                let _ = register_or_update_native_dock(hwnd, edge, monitor_rect, thickness_px, false);
+                let _ =
+                    register_or_update_native_dock(hwnd, edge, monitor_rect, thickness_px, false);
                 if removed.is_some() && hwnd != self.fallback_hwnd {
                     unsafe {
                         let _ = DestroyWindow(hwnd);

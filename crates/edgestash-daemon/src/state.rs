@@ -454,7 +454,10 @@ where
         target_state: UnstashTargetState,
     ) -> Result<(), EngineError> {
         let (key, slot_idx, win_idx) = self.find_window_slot(hwnd).ok_or_else(|| {
-            EngineError(IpcErrorCode::NotStashed, "Window is not stashed".to_string())
+            EngineError(
+                IpcErrorCode::NotStashed,
+                "Window is not stashed".to_string(),
+            )
         })?;
 
         let (removed, prev_thickness) = {
@@ -519,7 +522,10 @@ where
     /// Splits `hwnd` out of a multi-window group into its own standalone slot on the same edge.
     pub fn ungroup_window(&mut self, hwnd: WindowHandle) -> Result<(), EngineError> {
         let (key, slot_idx, win_idx) = self.find_window_slot(hwnd).ok_or_else(|| {
-            EngineError(IpcErrorCode::NotStashed, "Window is not stashed".to_string())
+            EngineError(
+                IpcErrorCode::NotStashed,
+                "Window is not stashed".to_string(),
+            )
         })?;
 
         let slot_len = self.decks[&key].slots[slot_idx].windows.len();
@@ -667,9 +673,7 @@ where
             return None;
         }
         let (key, idx, mark_as_default) = self.resolve_churn_zone_target(monitor_id, zone)?;
-        if mark_as_default
-            && let Some(deck) = self.decks.get_mut(&key)
-        {
+        if mark_as_default && let Some(deck) = self.decks.get_mut(&key) {
             deck.active_index = idx;
         }
         if self.decks[&key].slots[idx].is_open {
@@ -760,7 +764,10 @@ where
             .and_then(|d| d.slots.iter().position(|s| s.is_open))
             .or_else(|| self.active_visible_slot_index(&key))
             .ok_or_else(|| {
-                EngineError(IpcErrorCode::NoSlotOnEdge, "No visible slot on edge".to_string())
+                EngineError(
+                    IpcErrorCode::NoSlotOnEdge,
+                    "No visible slot on edge".to_string(),
+                )
             })?;
         self.close_slot(&key, open_idx);
         Ok(())
@@ -774,7 +781,10 @@ where
     ) -> Result<(), EngineError> {
         let key = self.resolve_deck_key(monitor_id, edge)?;
         let idx = self.active_visible_slot_index(&key).ok_or_else(|| {
-            EngineError(IpcErrorCode::NoSlotOnEdge, "No visible slot on edge".to_string())
+            EngineError(
+                IpcErrorCode::NoSlotOnEdge,
+                "No visible slot on edge".to_string(),
+            )
         })?;
         let hwnds: Vec<WindowHandle> = self.decks[&key].slots[idx]
             .windows
@@ -796,7 +806,10 @@ where
     ) -> Result<DockMode, EngineError> {
         let key = self.resolve_deck_key(monitor_id, edge)?;
         let idx = self.active_visible_slot_index(&key).ok_or_else(|| {
-            EngineError(IpcErrorCode::NoSlotOnEdge, "No visible slot on edge".to_string())
+            EngineError(
+                IpcErrorCode::NoSlotOnEdge,
+                "No visible slot on edge".to_string(),
+            )
         })?;
         let slot = &self.decks[&key].slots[idx];
         let next_mode = match slot.dock_mode {
@@ -870,15 +883,16 @@ where
         let mut candidate: Option<((String, ScreenEdge), usize)> = None;
         for (key, deck) in &self.decks {
             if !deck.slots.is_empty()
-                && let Some(idx) = self.active_visible_slot_index(key) {
-                    if Some(&key.0) == preferred_mon.as_ref() {
-                        candidate = Some((key.clone(), idx));
-                        break;
-                    }
-                    if candidate.is_none() {
-                        candidate = Some((key.clone(), idx));
-                    }
+                && let Some(idx) = self.active_visible_slot_index(key)
+            {
+                if Some(&key.0) == preferred_mon.as_ref() {
+                    candidate = Some((key.clone(), idx));
+                    break;
                 }
+                if candidate.is_none() {
+                    candidate = Some((key.clone(), idx));
+                }
+            }
         }
         let (key, idx) = candidate.ok_or_else(|| {
             EngineError(IpcErrorCode::NoSlotOnEdge, "No stashed windows".to_string())
@@ -921,7 +935,10 @@ where
             self.close_slot(&key, open_idx);
         }
         self.decks.get_mut(&key).unwrap().active_index = next_idx;
-        let primary_hwnd = self.decks[&key].slots[next_idx].windows.first().map(|w| w.hwnd);
+        let primary_hwnd = self.decks[&key].slots[next_idx]
+            .windows
+            .first()
+            .map(|w| w.hwnd);
         if let Some(h) = primary_hwnd {
             self.last_default_opened_hwnd = Some(h);
         }
@@ -954,12 +971,20 @@ where
         }
 
         let monitors = self.windows.enumerate_monitors();
-        let monitor = resolve_target_monitor(&monitors, Some(&key.0)).cloned().ok_or_else(|| {
-            EngineError(IpcErrorCode::InternalError, "Monitor unavailable".to_string())
-        })?;
+        let monitor = resolve_target_monitor(&monitors, Some(&key.0))
+            .cloned()
+            .ok_or_else(|| {
+                EngineError(
+                    IpcErrorCode::InternalError,
+                    "Monitor unavailable".to_string(),
+                )
+            })?;
         let thickness = self.decks[&key].slots[idx].max_thickness_px();
 
-        if matches!(mode, DockMode::FloatingPinned | DockMode::NativeWorkAreaDock) {
+        if matches!(
+            mode,
+            DockMode::FloatingPinned | DockMode::NativeWorkAreaDock
+        ) {
             self.decks.get_mut(&key).unwrap().slots[idx].preferred_pin_mode = mode;
         }
 
@@ -971,9 +996,13 @@ where
 
         match mode {
             DockMode::NativeWorkAreaDock => {
-                let reserved = self
-                    .appbar
-                    .register_or_update_dock(&key.0, key.1, monitor.rect, thickness, true);
+                let reserved = self.appbar.register_or_update_dock(
+                    &key.0,
+                    key.1,
+                    monitor.rect,
+                    thickness,
+                    true,
+                );
                 {
                     let slot = &mut self.decks.get_mut(&key).unwrap().slots[idx];
                     slot.dock_mode = mode;
@@ -1037,11 +1066,12 @@ where
                         self.windows.set_window_rect_visible(w.hwnd, w.target_rect);
                     }
                     if self.cfg.dim_background > 0 {
-                        self.overlay.emit_overlay_event(PillOverlayEvent::SetDimScrim {
-                            visible: true,
-                            monitor_rect: monitor.rect,
-                            opacity_percent: self.cfg.dim_background,
-                        });
+                        self.overlay
+                            .emit_overlay_event(PillOverlayEvent::SetDimScrim {
+                                visible: true,
+                                monitor_rect: monitor.rect,
+                                opacity_percent: self.cfg.dim_background,
+                            });
                     }
                     self.emit_header_for_slot(&key, idx, None);
                     self.sync_overlay_for_edge(&key);
@@ -1058,7 +1088,10 @@ where
         mode: VirtualDesktopMode,
     ) -> Result<(), EngineError> {
         let (key, slot_idx, _) = self.find_window_slot(hwnd).ok_or_else(|| {
-            EngineError(IpcErrorCode::NotStashed, "Window is not stashed".to_string())
+            EngineError(
+                IpcErrorCode::NotStashed,
+                "Window is not stashed".to_string(),
+            )
         })?;
         let scope = match mode {
             VirtualDesktopMode::AllDesktops => VirtualDesktopScope::AllDesktops,
@@ -1079,10 +1112,11 @@ where
         let now_ms = clock.now_ms();
 
         if let Some((target, restore_at)) = self.pending_focus_restore
-            && now_ms >= restore_at {
-                self.pending_focus_restore = None;
-                self.windows.force_restore_foreground_window(target);
-            }
+            && now_ms >= restore_at
+        {
+            self.pending_focus_restore = None;
+            self.windows.force_restore_foreground_window(target);
+        }
 
         let Some((mon_id, edge, slot_idx)) = self.open_floating_edge.clone() else {
             return;
@@ -1103,7 +1137,11 @@ where
         let mut group_rects: Vec<Rect> = slot
             .windows
             .iter()
-            .map(|w| self.windows.get_window_rect(w.hwnd).unwrap_or(w.target_rect))
+            .map(|w| {
+                self.windows
+                    .get_window_rect(w.hwnd)
+                    .unwrap_or(w.target_rect)
+            })
             .collect();
         if slot.header_rect.width() > 0 && slot.header_rect.height() > 0 {
             group_rects.push(slot.header_rect);
@@ -1164,7 +1202,11 @@ where
             let mut group_rects: Vec<Rect> = slot
                 .windows
                 .iter()
-                .map(|w| self.windows.get_window_rect(w.hwnd).unwrap_or(w.target_rect))
+                .map(|w| {
+                    self.windows
+                        .get_window_rect(w.hwnd)
+                        .unwrap_or(w.target_rect)
+                })
                 .collect();
             if slot.header_rect.width() > 0 && slot.header_rect.height() > 0 {
                 group_rects.push(slot.header_rect);
@@ -1190,7 +1232,11 @@ where
         );
         if is_ours {
             let mut cleared_any = false;
-            if let Some(slot_mut) = self.decks.get_mut(&key).and_then(|d| d.slots.get_mut(slot_idx)) {
+            if let Some(slot_mut) = self
+                .decks
+                .get_mut(&key)
+                .and_then(|d| d.slots.get_mut(slot_idx))
+            {
                 for win in &mut slot_mut.windows {
                     if win.needs_attention {
                         win.needs_attention = false;
@@ -1290,13 +1336,9 @@ where
                 clamped;
             if self.decks[&key].slots[slot_idx].dock_mode == DockMode::NativeWorkAreaDock {
                 let max_thick = self.decks[&key].slots[slot_idx].max_thickness_px();
-                let reserved = self.appbar.register_or_update_dock(
-                    &key.0,
-                    key.1,
-                    mon.rect,
-                    max_thick,
-                    true,
-                );
+                let reserved = self
+                    .appbar
+                    .register_or_update_dock(&key.0, key.1, mon.rect, max_thick, true);
                 self.decks.get_mut(&key).unwrap().slots[slot_idx].docked_reserved_rect = reserved;
             }
         }
@@ -1532,14 +1574,12 @@ where
                 },
                 Err(e) => e.to_ipc_response(),
             },
-            IpcRequest::UnstashWindow { hwnd } => {
-                match self.unstash_window(WindowHandle(hwnd)) {
-                    Ok(()) => IpcResponse::Ok {
-                        message: format!("Unstashed window {hwnd}"),
-                    },
-                    Err(e) => e.to_ipc_response(),
-                }
-            }
+            IpcRequest::UnstashWindow { hwnd } => match self.unstash_window(WindowHandle(hwnd)) {
+                Ok(()) => IpcResponse::Ok {
+                    message: format!("Unstashed window {hwnd}"),
+                },
+                Err(e) => e.to_ipc_response(),
+            },
             IpcRequest::UnstashActive { monitor_id, edge } => {
                 match self.unstash_active(monitor_id.as_deref(), edge) {
                     Ok(()) => IpcResponse::Ok {
@@ -1596,14 +1636,12 @@ where
                     Err(e) => e.to_ipc_response(),
                 }
             }
-            IpcRequest::UngroupWindow { hwnd } => {
-                match self.ungroup_window(WindowHandle(hwnd)) {
-                    Ok(()) => IpcResponse::Ok {
-                        message: format!("Ungrouped window {hwnd}"),
-                    },
-                    Err(e) => e.to_ipc_response(),
-                }
-            }
+            IpcRequest::UngroupWindow { hwnd } => match self.ungroup_window(WindowHandle(hwnd)) {
+                Ok(()) => IpcResponse::Ok {
+                    message: format!("Ungrouped window {hwnd}"),
+                },
+                Err(e) => e.to_ipc_response(),
+            },
             IpcRequest::SimulateWindowAttention { hwnd, edge } => {
                 let target = hwnd.map(WindowHandle);
                 let now_ms = current_epoch_ms();
@@ -1622,7 +1660,11 @@ where
         }
     }
 
-    fn open_slot(&mut self, key: &(String, ScreenEdge), slot_idx: usize) -> Result<(), EngineError> {
+    fn open_slot(
+        &mut self,
+        key: &(String, ScreenEdge),
+        slot_idx: usize,
+    ) -> Result<(), EngineError> {
         self.open_slot_with_focus(key, slot_idx, true)
     }
 
@@ -1644,9 +1686,10 @@ where
     ) -> Result<(), EngineError> {
         // Close any other open unpinned floating drawer globally
         if let Some((open_mon, open_edge, open_idx)) = self.open_floating_edge.clone()
-            && (open_mon.clone(), open_edge, open_idx) != (key.0.clone(), key.1, slot_idx) {
-                self.close_slot(&(open_mon, open_edge), open_idx);
-            }
+            && (open_mon.clone(), open_edge, open_idx) != (key.0.clone(), key.1, slot_idx)
+        {
+            self.close_slot(&(open_mon, open_edge), open_idx);
+        }
         // Close any other open slot on this same (monitor, edge) deck
         if let Some(prev_same_open) = self
             .decks
@@ -1661,10 +1704,16 @@ where
         let monitor = resolve_target_monitor(&monitors, Some(&key.0))
             .cloned()
             .ok_or_else(|| {
-                EngineError(IpcErrorCode::InternalError, "Monitor unavailable".to_string())
+                EngineError(
+                    IpcErrorCode::InternalError,
+                    "Monitor unavailable".to_string(),
+                )
             })?;
 
-        if let Some(slot_mut) = self.decks.get_mut(key).and_then(|d| d.slots.get_mut(slot_idx))
+        if let Some(slot_mut) = self
+            .decks
+            .get_mut(key)
+            .and_then(|d| d.slots.get_mut(slot_idx))
             && slot_mut.dock_mode == DockMode::NativeWorkAreaDock
             && slot_mut.docked_reserved_rect.is_none()
         {
@@ -1682,11 +1731,12 @@ where
         let target_header_rect = slot.header_rect;
 
         if vd_scope == VirtualDesktopScope::AllDesktops
-            && let Some(current_id) = self.vdesktop.get_current_desktop_id() {
-                for w in &slot.windows {
-                    let _ = self.vdesktop.move_window_to_desktop(w.hwnd, &current_id);
-                }
+            && let Some(current_id) = self.vdesktop.get_current_desktop_id()
+        {
+            for w in &slot.windows {
+                let _ = self.vdesktop.move_window_to_desktop(w.hwnd, &current_id);
             }
+        }
 
         let previous_fg = self.windows.get_foreground_window().filter(|&fg| {
             !self.overlay_windows.contains(&fg) && !slot.windows.iter().any(|w| w.hwnd == fg)
@@ -1736,14 +1786,18 @@ where
         }
 
         if dock_mode == DockMode::FloatingOverlay && self.cfg.dim_background > 0 {
-            self.overlay.emit_overlay_event(PillOverlayEvent::SetDimScrim {
-                visible: true,
-                monitor_rect: monitor.rect,
-                opacity_percent: self.cfg.dim_background,
-            });
+            self.overlay
+                .emit_overlay_event(PillOverlayEvent::SetDimScrim {
+                    visible: true,
+                    monitor_rect: monitor.rect,
+                    opacity_percent: self.cfg.dim_background,
+                });
         }
 
-        if matches!(dock_mode, DockMode::FloatingOverlay | DockMode::FloatingPinned) {
+        if matches!(
+            dock_mode,
+            DockMode::FloatingOverlay | DockMode::FloatingPinned
+        ) {
             for w in &self.decks[key].slots[slot_idx].windows {
                 self.windows.set_window_topmost(w.hwnd, true);
             }
@@ -1760,7 +1814,10 @@ where
             self.windows.refresh_window_rendering(w.hwnd);
         }
 
-        let primary_hwnd = self.decks[key].slots[slot_idx].windows.first().map(|w| w.hwnd);
+        let primary_hwnd = self.decks[key].slots[slot_idx]
+            .windows
+            .first()
+            .map(|w| w.hwnd);
         if mark_as_default && let Some(h) = primary_hwnd {
             self.last_default_opened_hwnd = Some(h);
         }
@@ -1775,27 +1832,34 @@ where
             }
         }
 
-        if allow_auto_focus && !self.drag_active && self.cfg.auto_focus_on_open
-            && let Some(hwnd) = primary_hwnd {
-                if let Some(slot_mut) = self.decks.get_mut(key).and_then(|d| d.slots.get_mut(slot_idx)) {
-                    for win in &mut slot_mut.windows {
-                        win.needs_attention = false;
-                        win.attention_time = None;
-                    }
-                }
-                self.dismissal.mark_drawer_gained_focus();
-                self.windows.set_foreground_window(hwnd);
-
-                // Re-assert target_rect post-activation so any OS window placement quirks
-                // or SwitchToThisWindow restore artifacts are immediately clamped to the docked bezel!
-                if let Some(w) = self.decks[key].slots[slot_idx]
-                    .windows
-                    .iter()
-                    .find(|w| w.hwnd == hwnd)
-                {
-                    self.windows.set_window_rect_visible(hwnd, w.target_rect);
+        if allow_auto_focus
+            && !self.drag_active
+            && self.cfg.auto_focus_on_open
+            && let Some(hwnd) = primary_hwnd
+        {
+            if let Some(slot_mut) = self
+                .decks
+                .get_mut(key)
+                .and_then(|d| d.slots.get_mut(slot_idx))
+            {
+                for win in &mut slot_mut.windows {
+                    win.needs_attention = false;
+                    win.attention_time = None;
                 }
             }
+            self.dismissal.mark_drawer_gained_focus();
+            self.windows.set_foreground_window(hwnd);
+
+            // Re-assert target_rect post-activation so any OS window placement quirks
+            // or SwitchToThisWindow restore artifacts are immediately clamped to the docked bezel!
+            if let Some(w) = self.decks[key].slots[slot_idx]
+                .windows
+                .iter()
+                .find(|w| w.hwnd == hwnd)
+            {
+                self.windows.set_window_rect_visible(hwnd, w.target_rect);
+            }
+        }
 
         self.sync_overlay_for_edge(key);
         Ok(())
@@ -1847,10 +1911,11 @@ where
             false,
         );
 
-        self.overlay.emit_overlay_event(PillOverlayEvent::HideDrawerHeader {
-            monitor_id: key.0.clone(),
-            edge: key.1,
-        });
+        self.overlay
+            .emit_overlay_event(PillOverlayEvent::HideDrawerHeader {
+                monitor_id: key.0.clone(),
+                edge: key.1,
+            });
 
         let vbounds = virtual_desktop_bounds(&monitors);
         for w in &self.decks[key].slots[slot_idx].windows {
@@ -1871,11 +1936,12 @@ where
 
     fn hide_dim_scrim(&self) {
         if self.cfg.dim_background > 0 {
-            self.overlay.emit_overlay_event(PillOverlayEvent::SetDimScrim {
-                visible: false,
-                monitor_rect: Rect::default(),
-                opacity_percent: 0,
-            });
+            self.overlay
+                .emit_overlay_event(PillOverlayEvent::SetDimScrim {
+                    visible: false,
+                    monitor_rect: Rect::default(),
+                    opacity_percent: 0,
+                });
         }
     }
 
@@ -1893,23 +1959,19 @@ where
         if should_remove_slot {
             let removed_slot = self.decks.get_mut(key).unwrap().slots.remove(slot_idx);
             if removed_slot.is_open {
-                self.overlay.emit_overlay_event(PillOverlayEvent::HideDrawerHeader {
-                    monitor_id: key.0.clone(),
-                    edge: key.1,
-                });
+                self.overlay
+                    .emit_overlay_event(PillOverlayEvent::HideDrawerHeader {
+                        monitor_id: key.0.clone(),
+                        edge: key.1,
+                    });
             }
             if removed_slot.dock_mode == DockMode::NativeWorkAreaDock {
                 let monitors = self.windows.enumerate_monitors();
                 let mon_rect = resolve_target_monitor(&monitors, Some(&key.0))
                     .map(|m| m.rect)
                     .unwrap_or_default();
-                self.appbar.register_or_update_dock(
-                    &key.0,
-                    key.1,
-                    mon_rect,
-                    prev_thickness,
-                    false,
-                );
+                self.appbar
+                    .register_or_update_dock(&key.0, key.1, mon_rect, prev_thickness, false);
             }
             if let Some((open_mon, open_edge, open_idx)) = self.open_floating_edge.clone()
                 && (open_mon, open_edge) == (key.0.clone(), key.1)
@@ -1946,7 +2008,11 @@ where
         let Some(mon) = resolve_target_monitor(&monitors, Some(&key.0)) else {
             return;
         };
-        let Some(slot) = self.decks.get_mut(key).and_then(|d| d.slots.get_mut(slot_idx)) else {
+        let Some(slot) = self
+            .decks
+            .get_mut(key)
+            .and_then(|d| d.slots.get_mut(slot_idx))
+        else {
             return;
         };
         let thicknesses: Vec<i32> = slot.windows.iter().map(|w| w.thickness_px).collect();
@@ -1991,17 +2057,18 @@ where
         } else {
             base_title
         };
-        self.overlay.emit_overlay_event(PillOverlayEvent::ShowDrawerHeader {
-            monitor_id: key.0.clone(),
-            edge: key.1,
-            header_rect: override_rect.unwrap_or(slot.header_rect),
-            title,
-            slot_index: visible_pos,
-            slot_count: visible_indices.len().max(1),
-            dock_mode: slot.dock_mode,
-            preferred_pin_mode: slot.preferred_pin_mode,
-            is_grouped,
-        });
+        self.overlay
+            .emit_overlay_event(PillOverlayEvent::ShowDrawerHeader {
+                monitor_id: key.0.clone(),
+                edge: key.1,
+                header_rect: override_rect.unwrap_or(slot.header_rect),
+                title,
+                slot_index: visible_pos,
+                slot_count: visible_indices.len().max(1),
+                dock_mode: slot.dock_mode,
+                preferred_pin_mode: slot.preferred_pin_mode,
+                is_grouped,
+            });
     }
 
     fn sync_overlay_for_edge(&self, key: &(String, ScreenEdge)) {
@@ -2031,20 +2098,21 @@ where
             }
         }
 
-        self.overlay.emit_overlay_event(PillOverlayEvent::SyncState {
-            monitor_id: key.0.clone(),
-            edge: key.1,
-            slot_count: visible_indices.len(),
-            active_index: visible_indices
-                .iter()
-                .position(|&i| i == active_idx)
-                .unwrap_or(0),
-            window_handles,
-            slot_titles,
-            is_open,
-            needs_attention,
-            attention_count,
-        });
+        self.overlay
+            .emit_overlay_event(PillOverlayEvent::SyncState {
+                monitor_id: key.0.clone(),
+                edge: key.1,
+                slot_count: visible_indices.len(),
+                active_index: visible_indices
+                    .iter()
+                    .position(|&i| i == active_idx)
+                    .unwrap_or(0),
+                window_handles,
+                slot_titles,
+                is_open,
+                needs_attention,
+                attention_count,
+            });
     }
 
     fn visible_slot_indices(&self, key: &(String, ScreenEdge)) -> Vec<usize> {
@@ -2077,9 +2145,9 @@ where
         }
         if self.cfg.prioritize_attention_on_summon
             && let Some(deck) = self.decks.get(key)
-            && let Some(&att_idx) = visible.iter().find(|&&i| {
-                deck.slots.get(i).is_some_and(|s| s.needs_attention())
-            })
+            && let Some(&att_idx) = visible
+                .iter()
+                .find(|&&i| deck.slots.get(i).is_some_and(|s| s.needs_attention()))
         {
             return Some(att_idx);
         }
@@ -2127,7 +2195,9 @@ where
     /// Returns `true` if `hwnd` is currently stashed and in an open drawer.
     pub fn is_window_stashed_and_open(&self, hwnd: WindowHandle) -> bool {
         if let Some((key, slot_idx, _)) = self.find_window_slot(hwnd) {
-            self.decks.get(&key).is_some_and(|d| d.slots.get(slot_idx).is_some_and(|s| s.is_open))
+            self.decks
+                .get(&key)
+                .is_some_and(|d| d.slots.get(slot_idx).is_some_and(|s| s.is_open))
         } else {
             false
         }
@@ -2180,10 +2250,7 @@ fn map_access_err(err: WindowAccessError) -> EngineError {
     }
 }
 
-fn select_monitor_for_rect(
-    monitors: &[MonitorInfo],
-    rect: Rect,
-) -> Option<&MonitorInfo> {
+fn select_monitor_for_rect(monitors: &[MonitorInfo], rect: Rect) -> Option<&MonitorInfo> {
     let cx = rect.left + rect.width() / 2;
     let cy = rect.top + rect.height() / 2;
     monitors

@@ -122,8 +122,7 @@ pub fn animate_windows_transition(
             let insets: BorderInsets = get_invisible_border_insets(t.hwnd).unwrap_or_default();
             let (start_x, start_y) =
                 visible_to_window_origin(t.start_visible_x, t.start_visible_y, insets);
-            let (end_x, end_y) =
-                visible_to_window_origin(t.end_visible_x, t.end_visible_y, insets);
+            let (end_x, end_y) = visible_to_window_origin(t.end_visible_x, t.end_visible_y, insets);
             let orig_ex_style = unsafe { GetWindowLongPtrW(t.hwnd, GWL_EXSTYLE) };
             let had_layered = (orig_ex_style & (WS_EX_LAYERED.0 as isize)) != 0;
             PreparedTarget {
@@ -191,13 +190,7 @@ pub fn animate_windows_transition(
 
             for p in &prepared {
                 let pose = compute_animation_frame(
-                    p.start_x,
-                    p.start_y,
-                    p.end_x,
-                    p.end_y,
-                    raw_t,
-                    style,
-                    is_opening,
+                    p.start_x, p.start_y, p.end_x, p.end_y, raw_t, style, is_opening,
                 );
                 if let Some(alpha) = pose.alpha {
                     let _ = SetLayeredWindowAttributes(p.hwnd, COLORREF(0), alpha, LWA_ALPHA);

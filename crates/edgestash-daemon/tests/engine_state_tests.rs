@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use edgestash_daemon::platform::{
-    AppBarApi, Clock, FakeClock, MonitorInfo, PillOverlayEvent, UnstashTargetState, VirtualDesktopApi, VisualOverlayApi,
-    WindowAccessError, WindowHandle, WindowSnapshot, WindowSystem, WindowTransition,
+    AppBarApi, Clock, FakeClock, MonitorInfo, PillOverlayEvent, UnstashTargetState,
+    VirtualDesktopApi, VisualOverlayApi, WindowAccessError, WindowHandle, WindowSnapshot,
+    WindowSystem, WindowTransition,
 };
 use edgestash_daemon::state::EdgeStashEngine;
 use edgestash_ipc::config::{ChurnZoneAction, EdgeStashConfig};
@@ -346,26 +347,44 @@ impl AppBarApi for MockPlatform {
                 .map(|m| m.work_rect)
                 .unwrap_or(monitor_rect);
             let reserved = match edge {
-                ScreenEdge::Left => Rect::new(work.left, work.top, work.left + thickness_px, work.bottom),
-                ScreenEdge::Right => Rect::new(work.right - thickness_px, work.top, work.right, work.bottom),
-                ScreenEdge::Top => Rect::new(work.left, work.top, work.right, work.top + thickness_px),
-                ScreenEdge::Bottom => Rect::new(work.left, work.bottom - thickness_px, work.right, work.bottom),
+                ScreenEdge::Left => {
+                    Rect::new(work.left, work.top, work.left + thickness_px, work.bottom)
+                }
+                ScreenEdge::Right => {
+                    Rect::new(work.right - thickness_px, work.top, work.right, work.bottom)
+                }
+                ScreenEdge::Top => {
+                    Rect::new(work.left, work.top, work.right, work.top + thickness_px)
+                }
+                ScreenEdge::Bottom => Rect::new(
+                    work.left,
+                    work.bottom - thickness_px,
+                    work.right,
+                    work.bottom,
+                ),
             };
             if st.simulate_shrunk_work_area_on_dock
-                && let Some(mon) = st.monitors.iter_mut().find(|m| m.id == monitor_id) {
-                    match edge {
-                        ScreenEdge::Left => mon.work_rect.left = reserved.right,
-                        ScreenEdge::Right => mon.work_rect.right = reserved.left,
-                        ScreenEdge::Top => mon.work_rect.top = reserved.bottom,
-                        ScreenEdge::Bottom => mon.work_rect.bottom = reserved.top,
-                    }
+                && let Some(mon) = st.monitors.iter_mut().find(|m| m.id == monitor_id)
+            {
+                match edge {
+                    ScreenEdge::Left => mon.work_rect.left = reserved.right,
+                    ScreenEdge::Right => mon.work_rect.right = reserved.left,
+                    ScreenEdge::Top => mon.work_rect.top = reserved.bottom,
+                    ScreenEdge::Bottom => mon.work_rect.bottom = reserved.top,
                 }
+            }
             Some(reserved)
         } else {
             if st.simulate_shrunk_work_area_on_dock
-                && let Some(mon) = st.monitors.iter_mut().find(|m| m.id == monitor_id) {
-                    mon.work_rect = Rect::new(mon.rect.left, mon.rect.top, mon.rect.right, mon.rect.bottom - 48);
-                }
+                && let Some(mon) = st.monitors.iter_mut().find(|m| m.id == monitor_id)
+            {
+                mon.work_rect = Rect::new(
+                    mon.rect.left,
+                    mon.rect.top,
+                    mon.rect.right,
+                    mon.rect.bottom - 48,
+                );
+            }
             None
         }
     }
@@ -418,13 +437,30 @@ fn stash_summon_dismiss_and_delayed_focus_restore_lifecycle() {
     assert!(manifest_path.exists());
 
     // 2. Summon Right edge -> opens with 28px top header strip, shows dim scrim, sets focus to notes
-    assert!(engine.toggle_edge(Some("MON-1"), ScreenEdge::Right).unwrap());
+    assert!(
+        engine
+            .toggle_edge(Some("MON-1"), ScreenEdge::Right)
+            .unwrap()
+    );
     assert!(!plat.is_window_cloaked(notes));
-    assert_eq!(plat.get_window_rect(notes).unwrap(), Rect::new(1920 - 450, 28, 1920, 1032));
-    assert_eq!(engine.header_rect_for_slot("MON-1", ScreenEdge::Right), Some(Rect::new(1920 - 450, 0, 1920, 28)));
+    assert_eq!(
+        plat.get_window_rect(notes).unwrap(),
+        Rect::new(1920 - 450, 28, 1920, 1032)
+    );
+    assert_eq!(
+        engine.header_rect_for_slot("MON-1", ScreenEdge::Right),
+        Some(Rect::new(1920 - 450, 0, 1920, 28))
+    );
     assert_eq!(plat.get_foreground_window(), Some(notes));
     assert!(plat.inner.borrow().overlay_events.iter().any(|e| {
-        matches!(e, PillOverlayEvent::SetDimScrim { visible: true, opacity_percent: 30, .. })
+        matches!(
+            e,
+            PillOverlayEvent::SetDimScrim {
+                visible: true,
+                opacity_percent: 30,
+                ..
+            }
+        )
     }));
 
     // 3. Cursor enters drawer, then leaves past 24px margin -> waits 350ms -> hides & schedules focus restore (50ms)
@@ -480,15 +516,25 @@ fn grouping_and_ungrouping_windows_animates_together_and_protects_intra_group_fo
         manifest_path.clone(),
     );
 
-    engine.stash_window(notepad, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(notepad, ScreenEdge::Right, false)
+        .unwrap();
     engine.stash_window(calc, ScreenEdge::Right, true).unwrap();
 
     // Opening Right edge animates BOTH Notepad & Calc together below unified 28px header bar!
-    engine.toggle_edge(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .toggle_edge(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
     let last_batch = plat.inner.borrow().animated_batches.last().unwrap().clone();
     assert_eq!(last_batch.0.len(), 2);
-    assert_eq!(plat.get_window_rect(notepad).unwrap(), Rect::new(1920 - 400, 28, 1920, 530));
-    assert_eq!(plat.get_window_rect(calc).unwrap(), Rect::new(1920 - 360, 530, 1920, 1032));
+    assert_eq!(
+        plat.get_window_rect(notepad).unwrap(),
+        Rect::new(1920 - 400, 28, 1920, 530)
+    );
+    assert_eq!(
+        plat.get_window_rect(calc).unwrap(),
+        Rect::new(1920 - 360, 530, 1920, 1032)
+    );
 
     // Switching focus from Notepad to Calculator keeps group open!
     engine.on_foreground_changed(calc);
@@ -511,9 +557,16 @@ fn grouping_and_ungrouping_windows_animates_together_and_protects_intra_group_fo
     assert_eq!(right_slots.len(), 2);
 
     // Cycling Right edge switches active slot
-    engine.cycle_edge(Some("MON-1"), ScreenEdge::Right, 1).unwrap();
+    engine
+        .cycle_edge(Some("MON-1"), ScreenEdge::Right, 1)
+        .unwrap();
     let status2 = engine.status_snapshot(1);
-    assert!(status2.slots.iter().any(|s| s.is_active_in_deck && s.windows[0].hwnd == calc.0));
+    assert!(
+        status2
+            .slots
+            .iter()
+            .any(|s| s.is_active_in_deck && s.windows[0].hwnd == calc.0)
+    );
     let _ = std::fs::remove_file(&manifest_path);
 }
 
@@ -545,7 +598,9 @@ fn virtual_desktop_scoping_appbar_docking_and_destroyed_window_animation() {
     );
 
     engine.stash_window(w_all, ScreenEdge::Left, false).unwrap();
-    engine.stash_window(w_pinned, ScreenEdge::Bottom, false).unwrap();
+    engine
+        .stash_window(w_pinned, ScreenEdge::Bottom, false)
+        .unwrap();
     engine
         .set_virtual_desktop_mode(w_pinned, VirtualDesktopMode::CurrentDesktopOnly)
         .unwrap();
@@ -554,7 +609,9 @@ fn virtual_desktop_scoping_appbar_docking_and_destroyed_window_animation() {
     plat.inner.borrow_mut().current_desktop = d2;
 
     // Pinned window on D1 is muted on D2!
-    let err = engine.toggle_edge(Some("MON-1"), ScreenEdge::Bottom).unwrap_err();
+    let err = engine
+        .toggle_edge(Some("MON-1"), ScreenEdge::Bottom)
+        .unwrap_err();
     assert_eq!(err.0, IpcErrorCode::NoSlotOnEdge);
 
     // Global window moves to D2 before opening!
@@ -563,13 +620,18 @@ fn virtual_desktop_scoping_appbar_docking_and_destroyed_window_animation() {
 
     // Switch Left edge to NativeWorkAreaDock -> registers AppBar & keeps open despite cursor outside
     engine
-        .set_dock_mode(Some("MON-1"), ScreenEdge::Left, DockMode::NativeWorkAreaDock)
+        .set_dock_mode(
+            Some("MON-1"),
+            ScreenEdge::Left,
+            DockMode::NativeWorkAreaDock,
+        )
         .unwrap();
-    assert!(plat
-        .inner
-        .borrow()
-        .appbars
-        .contains(&("MON-1".to_string(), ScreenEdge::Left, 400, true)));
+    assert!(plat.inner.borrow().appbars.contains(&(
+        "MON-1".to_string(),
+        ScreenEdge::Left,
+        400,
+        true
+    )));
 
     // External window destruction emits WindowClosedAnimation & purges slot + unregisters AppBar!
     plat.inner.borrow_mut().windows.remove(&w_all);
@@ -584,11 +646,12 @@ fn virtual_desktop_scoping_appbar_docking_and_destroyed_window_animation() {
             } if *closed_hwnd == w_all
         )
     }));
-    assert!(plat
-        .inner
-        .borrow()
-        .appbars
-        .contains(&("MON-1".to_string(), ScreenEdge::Left, 400, false)));
+    assert!(plat.inner.borrow().appbars.contains(&(
+        "MON-1".to_string(),
+        ScreenEdge::Left,
+        400,
+        false
+    )));
 
     let _ = d1;
     let _ = std::fs::remove_file(&manifest_path);
@@ -640,7 +703,11 @@ fn fullscreen_mute_single_floating_drawer_monitor_disconnect_and_resize_remember
     engine.on_window_resized(w1);
 
     // Opening MON-2 Right closes MON-1 Left (single active floating drawer!)
-    assert!(engine.toggle_edge(Some("MON-2"), ScreenEdge::Right).unwrap());
+    assert!(
+        engine
+            .toggle_edge(Some("MON-2"), ScreenEdge::Right)
+            .unwrap()
+    );
     assert!(plat.is_window_cloaked(w1));
     assert!(!plat.is_window_cloaked(w2));
 
@@ -656,8 +723,15 @@ fn fullscreen_mute_single_floating_drawer_monitor_disconnect_and_resize_remember
 
     // Verify protected window rejected cleanly
     let shell = plat.add_window(99, "Shell", Rect::new(0, 0, 100, 100));
-    plat.inner.borrow_mut().windows.get_mut(&shell).unwrap().protected = true;
-    let err = engine.stash_window(shell, ScreenEdge::Top, false).unwrap_err();
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&shell)
+        .unwrap()
+        .protected = true;
+    let err = engine
+        .stash_window(shell, ScreenEdge::Top, false)
+        .unwrap_err();
     assert_eq!(err.0, IpcErrorCode::WindowProtected);
 
     let _ = HashSet::<isize>::new();
@@ -689,7 +763,9 @@ fn removing_earlier_slot_keeps_open_floating_drawer_index_consistent() {
     engine.stash_window(w1, ScreenEdge::Right, false).unwrap();
     engine.stash_window(w2, ScreenEdge::Right, false).unwrap();
     // Active is now w2 (index 1); open it
-    engine.toggle_edge(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .toggle_edge(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
     assert!(!plat.is_window_cloaked(w2));
 
     // Unstash w1 (index 0) while w2 (index 1) is open
@@ -728,7 +804,11 @@ fn floating_overlay_promotes_topmost_on_open_and_native_dock_clears_topmost() {
     );
 
     engine
-        .set_dock_mode(Some("MON-1"), ScreenEdge::Right, DockMode::NativeWorkAreaDock)
+        .set_dock_mode(
+            Some("MON-1"),
+            ScreenEdge::Right,
+            DockMode::NativeWorkAreaDock,
+        )
         .unwrap();
     assert!(
         plat.inner.borrow().topmost_calls.contains(&(w1, false)),
@@ -768,9 +848,13 @@ fn pin_modes_header_actions_app_icons_sync_and_drag_protection_lifecycle() {
     );
 
     // Group Notes+Chat in slot 0 and stash Music in slot 1 on Right; stash SideLeft on Left
-    engine.stash_window(notes, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(notes, ScreenEdge::Right, false)
+        .unwrap();
     engine.stash_window(chat, ScreenEdge::Right, true).unwrap();
-    engine.stash_window(music, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(music, ScreenEdge::Right, false)
+        .unwrap();
     engine.stash_window(side, ScreenEdge::Left, false).unwrap();
 
     // SyncState emits 1:1 per-slot representative handle & title matching slot_count = 2 on Right!
@@ -780,7 +864,15 @@ fn pin_modes_header_actions_app_icons_sync_and_drag_protection_lifecycle() {
         .overlay_events
         .iter()
         .rev()
-        .find(|e| matches!(e, PillOverlayEvent::SyncState { edge: ScreenEdge::Right, .. }))
+        .find(|e| {
+            matches!(
+                e,
+                PillOverlayEvent::SyncState {
+                    edge: ScreenEdge::Right,
+                    ..
+                }
+            )
+        })
         .cloned()
         .expect("Right SyncState emitted");
     if let PillOverlayEvent::SyncState {
@@ -803,7 +895,9 @@ fn pin_modes_header_actions_app_icons_sync_and_drag_protection_lifecycle() {
     assert!(plat.is_window_cloaked(music));
 
     // Toggle Pin via left-click: default goes FloatingPinned, hides dim scrim, keeps HWND_TOPMOST!
-    let pinned_mode = engine.toggle_pin_active(Some("MON-1"), ScreenEdge::Right).unwrap();
+    let pinned_mode = engine
+        .toggle_pin_active(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
     assert_eq!(pinned_mode, DockMode::FloatingPinned);
     assert!(matches!(
         plat.inner.borrow().overlay_events.last(),
@@ -813,7 +907,14 @@ fn pin_modes_header_actions_app_icons_sync_and_drag_protection_lifecycle() {
         }) | Some(PillOverlayEvent::SyncState { .. })
     ));
     assert!(plat.inner.borrow().overlay_events.iter().rev().any(|e| {
-        matches!(e, PillOverlayEvent::SetDimScrim { visible: false, opacity_percent: 0, .. })
+        matches!(
+            e,
+            PillOverlayEvent::SetDimScrim {
+                visible: false,
+                opacity_percent: 0,
+                ..
+            }
+        )
     }));
 
     // FloatingPinned ignores mouse-leave AND external foreground focus loss!
@@ -832,7 +933,11 @@ fn pin_modes_header_actions_app_icons_sync_and_drag_protection_lifecycle() {
 
     // Switch Right edge pin via right-click to NativeWorkAreaDock: shrinks work area yet stays flush at [1520..1920]!
     engine
-        .set_dock_mode(Some("MON-1"), ScreenEdge::Right, DockMode::NativeWorkAreaDock)
+        .set_dock_mode(
+            Some("MON-1"),
+            ScreenEdge::Right,
+            DockMode::NativeWorkAreaDock,
+        )
         .unwrap();
     assert_eq!(
         engine.header_rect_for_slot("MON-1", ScreenEdge::Right),
@@ -869,13 +974,19 @@ fn pin_modes_header_actions_app_icons_sync_and_drag_protection_lifecycle() {
     plat.inner.borrow_mut().cursor = (900, 500);
     clock.advance(2000);
     engine.tick(&clock);
-    assert!(!plat.is_window_cloaked(dwin), "active drag must keep drawer open");
+    assert!(
+        !plat.is_window_cloaked(dwin),
+        "active drag must keep drawer open"
+    );
 
     engine.set_drag_active(false);
     engine.tick(&clock);
     clock.advance(400);
     engine.tick(&clock);
-    assert!(plat.is_window_cloaked(dwin), "releasing drag allows normal mouse-leave close");
+    assert!(
+        plat.is_window_cloaked(dwin),
+        "releasing drag allows normal mouse-leave close"
+    );
 
     let _ = std::fs::remove_file(&manifest_path);
 }
@@ -914,12 +1025,8 @@ fn locked_stashed_window_snaps_back_on_move_while_allowing_resize_and_churn_zone
         "notepad.exe",
         Rect::new(200, 200, 620, 700),
     );
-    let left_term = plat.add_window_with_process(
-        203,
-        "PowerShell",
-        "pwsh.exe",
-        Rect::new(0, 0, 400, 700),
-    );
+    let left_term =
+        plat.add_window_with_process(203, "PowerShell", "pwsh.exe", Rect::new(0, 0, 400, 700));
 
     let mut engine = EdgeStashEngine::new(
         plat.clone(),
@@ -931,18 +1038,30 @@ fn locked_stashed_window_snaps_back_on_move_while_allowing_resize_and_churn_zone
         manifest_path.clone(),
     );
 
-    engine.stash_window(spotify, ScreenEdge::Right, false).unwrap();
-    engine.stash_window(notes, ScreenEdge::Right, false).unwrap();
-    engine.stash_window(left_term, ScreenEdge::Left, false).unwrap();
+    engine
+        .stash_window(spotify, ScreenEdge::Right, false)
+        .unwrap();
+    engine
+        .stash_window(notes, ScreenEdge::Right, false)
+        .unwrap();
+    engine
+        .stash_window(left_term, ScreenEdge::Left, false)
+        .unwrap();
 
     // Open Notes via normal selection -> sets default last opened = Notes
-    engine.select_and_open_slot(Some("MON-1"), ScreenEdge::Right, 1, false).unwrap();
+    engine
+        .select_and_open_slot(Some("MON-1"), ScreenEdge::Right, 1, false)
+        .unwrap();
     let initial_notes_rect = plat.get_window_rect(notes).unwrap();
     assert_eq!(initial_notes_rect, Rect::new(1500, 28, 1920, 1032));
 
     // Problem 3: During live drag, on_window_moved_or_resized(notes, true) does NOT snap back (eliminates stutter)!
-    plat.inner.borrow_mut().windows.get_mut(&notes).unwrap().rect =
-        Rect::new(1840, 28, 2260, 1032);
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&notes)
+        .unwrap()
+        .rect = Rect::new(1840, 28, 2260, 1032);
     assert!(!engine.on_window_moved_or_resized(notes, true));
     assert_eq!(
         plat.get_window_rect(notes).unwrap(),
@@ -950,14 +1069,22 @@ fn locked_stashed_window_snaps_back_on_move_while_allowing_resize_and_churn_zone
     );
 
     // Dropping near edge (within 100px: distance = 80px) on mouse release snaps it back to initial_notes_rect!
-    plat.inner.borrow_mut().windows.get_mut(&notes).unwrap().rect =
-        Rect::new(1420, 28, 1840, 1032);
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&notes)
+        .unwrap()
+        .rect = Rect::new(1420, 28, 1840, 1032);
     assert!(engine.on_window_moved_or_resized(notes, false));
     assert_eq!(plat.get_window_rect(notes).unwrap(), initial_notes_rect);
 
     // Resizing inner left edge wider (width 420 -> 540) keeps it docked at right=1920 with updated width 540!
-    plat.inner.borrow_mut().windows.get_mut(&notes).unwrap().rect =
-        Rect::new(1380, 28, 1920, 1032);
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&notes)
+        .unwrap()
+        .rect = Rect::new(1380, 28, 1920, 1032);
     assert!(engine.on_window_moved_or_resized(notes, false));
     assert_eq!(
         plat.get_window_rect(notes).unwrap(),
@@ -965,28 +1092,42 @@ fn locked_stashed_window_snaps_back_on_move_while_allowing_resize_and_churn_zone
     );
 
     // Dragging and dropping far into screen (> 100px from bezel, e.g. dropped at x=900) automatically unstashes it!
-    plat.inner.borrow_mut().windows.get_mut(&notes).unwrap().rect =
-        Rect::new(900, 100, 1440, 1104);
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&notes)
+        .unwrap()
+        .rect = Rect::new(900, 100, 1440, 1104);
     assert!(engine.on_window_moved_or_resized(notes, false));
     assert!(!engine.is_window_stashed(notes));
 
     // Re-stash notes so later churn zone tests have their default target
-    engine.stash_window(notes, ScreenEdge::Right, false).unwrap();
-    engine.select_and_open_slot(Some("MON-1"), ScreenEdge::Right, 1, false).unwrap();
+    engine
+        .stash_window(notes, ScreenEdge::Right, false)
+        .unwrap();
+    engine
+        .select_and_open_slot(Some("MON-1"), ScreenEdge::Right, 1, false)
+        .unwrap();
 
     // Turning lock_stashed_position = false stops move snap-back entirely
     let mut unlocked = engine.config().clone();
     unlocked.lock_stashed_position = false;
     engine.update_config(unlocked);
-    plat.inner.borrow_mut().windows.get_mut(&notes).unwrap().rect =
-        Rect::new(900, 100, 1440, 1104);
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&notes)
+        .unwrap()
+        .rect = Rect::new(900, 100, 1440, 1104);
     assert!(!engine.on_window_moved_or_resized(notes, true));
     assert_eq!(
         plat.get_window_rect(notes).unwrap(),
         Rect::new(900, 100, 1440, 1104)
     );
 
-    engine.close_slot_drawer(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .close_slot_drawer(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
 
     // Feature #7: BottomRightUp always opens Spotify without clobbering Default (Notes)!
     assert_eq!(
@@ -997,7 +1138,9 @@ fn locked_stashed_window_snaps_back_on_move_while_allowing_resize_and_churn_zone
     assert!(plat.is_window_cloaked(notes));
 
     // Close Spotify, churn TopRightDown (DefaultLastOpened) -> opens Notes again!
-    engine.close_slot_drawer(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .close_slot_drawer(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
     assert_eq!(
         engine.on_churn_zone_trigger("MON-1", ChurnZoneId::TopRightDown),
         Some(("MON-1".to_string(), ScreenEdge::Right))
@@ -1011,7 +1154,9 @@ fn locked_stashed_window_snaps_back_on_move_while_allowing_resize_and_churn_zone
     );
 
     // If assigned SpecificApp (Spotify) closes/unstashes, BottomRightUp does nothing (never opens Notes)
-    engine.close_slot_drawer(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .close_slot_drawer(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
     engine.on_window_destroyed(spotify);
     assert_eq!(
         engine.on_churn_zone_trigger("MON-1", ChurnZoneId::BottomRightUp),
@@ -1047,8 +1192,12 @@ fn window_attention_detection_prioritization_and_focus_clearing_lifecycle() {
     );
 
     // Stash Slack and Messenger onto Right edge as separate slots
-    engine.stash_window(slack, ScreenEdge::Right, false).unwrap();
-    engine.stash_window(messenger, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(slack, ScreenEdge::Right, false)
+        .unwrap();
+    engine
+        .stash_window(messenger, ScreenEdge::Right, false)
+        .unwrap();
 
     let snap_init = engine.status_snapshot(1);
     assert_eq!(snap_init.slots.len(), 2);
@@ -1080,7 +1229,11 @@ fn window_attention_detection_prioritization_and_focus_clearing_lifecycle() {
     }
 
     // Edge summon (bezel push or toggle) prioritizes the attention slot (Messenger) over Slot 0 (Slack)!
-    assert!(engine.toggle_edge(Some("MON-1"), ScreenEdge::Right).unwrap());
+    assert!(
+        engine
+            .toggle_edge(Some("MON-1"), ScreenEdge::Right)
+            .unwrap()
+    );
     assert!(!plat.is_window_cloaked(messenger));
     assert!(plat.is_window_cloaked(slack));
 
@@ -1117,12 +1270,19 @@ fn stashed_window_minimize_click_unstashes_and_system_minimize_auto_restores_on_
     );
 
     // 1. Stash File Explorer to Right edge (parks and cloaks window into stash)
-    engine.stash_window(explorer, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(explorer, ScreenEdge::Right, false)
+        .unwrap();
     assert!(engine.is_window_stashed(explorer));
     assert!(!engine.has_any_open_slot());
 
     // 2. Simulate System Minimize (Win+D / Win+M): window becomes iconic while stashed
-    plat.inner.borrow_mut().windows.get_mut(&explorer).unwrap().is_iconic = true;
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&explorer)
+        .unwrap()
+        .is_iconic = true;
     assert!(plat.inner.borrow().windows[&explorer].is_iconic);
 
     // 3. User summons stashed drawer: EdgeStash must auto-restore iconic window and refresh rendering
@@ -1131,11 +1291,25 @@ fn stashed_window_minimize_click_unstashes_and_system_minimize_auto_restores_on_
 
     // Verify ensure_window_restored cleared the iconic state
     assert!(!plat.inner.borrow().windows[&explorer].is_iconic);
-    assert!(plat.inner.borrow().ensure_restored_calls.contains(&explorer));
-    assert!(plat.inner.borrow().refresh_rendering_calls.contains(&explorer));
+    assert!(
+        plat.inner
+            .borrow()
+            .ensure_restored_calls
+            .contains(&explorer)
+    );
+    assert!(
+        plat.inner
+            .borrow()
+            .refresh_rendering_calls
+            .contains(&explorer)
+    );
 
     // 4. Simulate user clicking Minimize button: un-stashes the window and leaves it minimized
-    assert!(engine.unstash_window_with_state(explorer, UnstashTargetState::Minimize).is_ok());
+    assert!(
+        engine
+            .unstash_window_with_state(explorer, UnstashTargetState::Minimize)
+            .is_ok()
+    );
     assert!(!engine.is_window_stashed(explorer));
     assert!(!engine.has_any_open_slot());
     assert!(plat.inner.borrow().windows[&explorer].is_iconic);
@@ -1168,13 +1342,25 @@ fn stashed_window_maximize_unstashes_and_maximizes() {
     );
 
     // 1. Stash editor to Right edge and open drawer
-    engine.stash_window(editor, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(editor, ScreenEdge::Right, false)
+        .unwrap();
     assert!(engine.on_edge_trigger("MON-1", ScreenEdge::Right));
     assert!(engine.is_window_stashed_and_open(editor));
 
     // 2. User clicks Maximize button on stashed window (window becomes zoomed)
-    plat.inner.borrow_mut().windows.get_mut(&editor).unwrap().is_zoomed = true;
-    plat.inner.borrow_mut().windows.get_mut(&editor).unwrap().rect = Rect::new(0, 0, 1920, 1032);
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&editor)
+        .unwrap()
+        .is_zoomed = true;
+    plat.inner
+        .borrow_mut()
+        .windows
+        .get_mut(&editor)
+        .unwrap()
+        .rect = Rect::new(0, 0, 1920, 1032);
 
     // 3. Movement/resize event fires: window must automatically un-stash!
     assert!(engine.on_window_moved_or_resized(editor, true));
@@ -1210,7 +1396,9 @@ fn active_foreground_window_never_triggers_attention_flash() {
         manifest_path.clone(),
     );
 
-    engine.stash_window(explorer, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(explorer, ScreenEdge::Right, false)
+        .unwrap();
     assert!(engine.on_edge_trigger("MON-1", ScreenEdge::Right));
 
     // User is actively focused in Explorer (foreground window)
@@ -1219,7 +1407,10 @@ fn active_foreground_window_never_triggers_attention_flash() {
 
     // Even if attention is delivered (e.g. folder change / redraw), it must be rejected!
     let res = engine.handle_window_attention(explorer, clock.now_ms());
-    assert_eq!(res, None, "Foreground active window must NEVER trigger attention");
+    assert_eq!(
+        res, None,
+        "Foreground active window must NEVER trigger attention"
+    );
 
     let snap = engine.status_snapshot(1);
     assert!(!snap.slots[0].needs_attention);
@@ -1253,12 +1444,20 @@ fn auto_focus_setting_controls_window_activation_and_mouse_leave_restoration() {
         manifest_path.clone(),
     );
 
-    engine.stash_window(messenger, ScreenEdge::Right, false).unwrap();
+    engine
+        .stash_window(messenger, ScreenEdge::Right, false)
+        .unwrap();
     assert!(engine.on_edge_trigger("MON-1", ScreenEdge::Right));
-    assert_eq!(plat.get_foreground_window(), Some(browser), "Foreground must remain Chrome when auto_focus is disabled");
+    assert_eq!(
+        plat.get_foreground_window(),
+        Some(browser),
+        "Foreground must remain Chrome when auto_focus is disabled"
+    );
 
     // Close drawer
-    engine.close_slot_drawer(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .close_slot_drawer(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
 
     // Test 2: auto_focus_on_open = true -> Opening stash transfers focus to Messenger!
     cfg.auto_focus_on_open = true;
@@ -1268,7 +1467,11 @@ fn auto_focus_setting_controls_window_activation_and_mouse_leave_restoration() {
 
     plat.inner.borrow_mut().foreground = Some(browser);
     assert!(engine.on_edge_trigger("MON-1", ScreenEdge::Right));
-    assert_eq!(plat.get_foreground_window(), Some(messenger), "Foreground must transfer to Messenger when auto_focus is enabled");
+    assert_eq!(
+        plat.get_foreground_window(),
+        Some(messenger),
+        "Foreground must transfer to Messenger when auto_focus is enabled"
+    );
 
     // Move cursor into drawer, then move out -> after delay, drawer hides and focus restores to browser!
     plat.inner.borrow_mut().cursor = (1920 - 200, 300);
@@ -1288,7 +1491,11 @@ fn auto_focus_setting_controls_window_activation_and_mouse_leave_restoration() {
     clock.advance(50);
     engine.tick(&clock);
     assert!(!engine.has_pending_focus_restore());
-    assert_eq!(plat.get_foreground_window(), Some(browser), "Foreground must restore to Chrome when mouse leaves");
+    assert_eq!(
+        plat.get_foreground_window(),
+        Some(browser),
+        "Foreground must restore to Chrome when mouse leaves"
+    );
 
     let _ = std::fs::remove_file(&manifest_path);
 }
@@ -1360,12 +1567,8 @@ fn stash_window_and_bind_churn_zone_persists_config_to_disk() {
     );
     engine.set_config_path(config_path.clone());
 
-    let spotify = plat.add_window_with_process(
-        201,
-        "Spotify",
-        "spotify.exe",
-        Rect::new(100, 100, 500, 500),
-    );
+    let spotify =
+        plat.add_window_with_process(201, "Spotify", "spotify.exe", Rect::new(100, 100, 500, 500));
 
     engine
         .stash_window_and_bind_churn_zone(spotify, ChurnZoneId::BottomRightUp)
@@ -1399,12 +1602,8 @@ fn normal_stash_after_corner_churn_zone_trigger_reveals_normal_default_view() {
         manifest_path.clone(),
     );
 
-    let calc = plat.add_window_with_process(
-        101,
-        "Calculator",
-        "calc.exe",
-        Rect::new(200, 200, 600, 600),
-    );
+    let calc =
+        plat.add_window_with_process(101, "Calculator", "calc.exe", Rect::new(200, 200, 600, 600));
     let explorer = plat.add_window_with_process(
         102,
         "File Explorer",
@@ -1424,13 +1623,24 @@ fn normal_stash_after_corner_churn_zone_trigger_reveals_normal_default_view() {
 
     // 3. Trigger corner churn zone TopRightDown (should open calc)
     let opened_corner = engine.on_churn_zone_trigger("MON-1", ChurnZoneId::TopRightDown);
-    assert_eq!(opened_corner, Some(("MON-1".to_string(), ScreenEdge::Right)));
+    assert_eq!(
+        opened_corner,
+        Some(("MON-1".to_string(), ScreenEdge::Right))
+    );
     assert!(engine.is_edge_open("MON-1", ScreenEdge::Right));
-    assert!(engine.is_window_stashed_and_open(calc), "Calc must open from corner trigger");
-    assert!(!engine.is_window_stashed_and_open(explorer), "Explorer must NOT open from calc corner trigger");
+    assert!(
+        engine.is_window_stashed_and_open(calc),
+        "Calc must open from corner trigger"
+    );
+    assert!(
+        !engine.is_window_stashed_and_open(explorer),
+        "Explorer must NOT open from calc corner trigger"
+    );
 
     // 4. Close the drawer (e.g. mouse leaves or dismissal)
-    engine.close_slot_drawer(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .close_slot_drawer(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
     assert!(!engine.is_edge_open("MON-1", ScreenEdge::Right));
 
     // 5. Trigger normal edge (e.g. EdgeBump or EdgeHover)
@@ -1447,11 +1657,16 @@ fn normal_stash_after_corner_churn_zone_trigger_reveals_normal_default_view() {
     );
 
     // 6. Close drawer again
-    engine.close_slot_drawer(Some("MON-1"), ScreenEdge::Right).unwrap();
+    engine
+        .close_slot_drawer(Some("MON-1"), ScreenEdge::Right)
+        .unwrap();
 
     // 7. Trigger a DefaultLastOpened corner zone (BottomRightUp)
     let opened_default_corner = engine.on_churn_zone_trigger("MON-1", ChurnZoneId::BottomRightUp);
-    assert_eq!(opened_default_corner, Some(("MON-1".to_string(), ScreenEdge::Right)));
+    assert_eq!(
+        opened_default_corner,
+        Some(("MON-1".to_string(), ScreenEdge::Right))
+    );
     assert!(
         engine.is_window_stashed_and_open(explorer),
         "Default corner zone must also reveal normal default view (Explorer)"
@@ -1528,7 +1743,10 @@ fn stashed_window_docking_rect_preserved_on_reveal() {
 
     // Final window rect must be docked against right bezel, NOT restored to center [600, 200, ...]!
     let final_rect = plat.get_window_rect(win).unwrap();
-    assert_eq!(final_rect.right, 1920, "Must be docked to right screen bezel");
+    assert_eq!(
+        final_rect.right, 1920,
+        "Must be docked to right screen bezel"
+    );
     assert_eq!(final_rect.top, 28, "Top must be below 28px drawer header");
 
     let _ = std::fs::remove_file(&manifest_path);

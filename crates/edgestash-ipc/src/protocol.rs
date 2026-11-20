@@ -126,8 +126,8 @@ pub enum IpcResponse {
 
 /// Encodes a serializable message into a 4-byte little-endian length-prefixed JSON frame.
 pub fn encode_frame<T: Serialize>(value: &T) -> io::Result<Vec<u8>> {
-    let payload = serde_json::to_vec(value)
-        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+    let payload =
+        serde_json::to_vec(value).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
     if payload.len() > MAX_IPC_FRAME_BYTES {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -188,6 +188,5 @@ pub fn read_frame<R: Read, T: DeserializeOwned>(reader: &mut R) -> io::Result<T>
     }
     let mut payload = vec![0u8; len];
     reader.read_exact(&mut payload)?;
-    serde_json::from_slice(&payload)
-        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+    serde_json::from_slice(&payload).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
 }

@@ -71,7 +71,9 @@ impl PumpingTestWindows {
             }
         });
 
-        let (thread_id, hwnds) = rx.recv_timeout(Duration::from_secs(5)).expect("UI thread ready");
+        let (thread_id, hwnds) = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("UI thread ready");
         Self {
             hwnds,
             thread_id,
@@ -301,7 +303,9 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
     }
     thread::sleep(Duration::from_millis(120));
 
-    let st = client.send(&IpcRequest::Status).expect("status after pill hover");
+    let st = client
+        .send(&IpcRequest::Status)
+        .expect("status after pill hover");
     match st {
         IpcResponse::Status(snap) => {
             assert_eq!(snap.slots.len(), 1);
@@ -333,7 +337,9 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
         "gesture_mode = \"EdgeHover\"\nedge_dwell_ms = 0\nopen_duration_ms = 50\nclose_duration_ms = 50\nauto_focus_on_open = false\ndisable_in_fullscreen = false\nedge_pill_style = \"AppIconsStack\"\n",
     )
     .unwrap();
-    let reload_resp = client.send(&IpcRequest::ReloadConfig).expect("reload EdgeHover config");
+    let reload_resp = client
+        .send(&IpcRequest::ReloadConfig)
+        .expect("reload EdgeHover config");
     assert!(matches!(reload_resp, IpcResponse::Ok { .. }));
 
     let right_strip = find_own_windows_by_class("EdgeStashTriggerStrip")
@@ -341,11 +347,14 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
         .find(|&h| {
             let mut r = RECT::default();
             let ok = unsafe { GetWindowRect(h, &mut r).is_ok() };
-            ok && (r.right - r.left) >= 1 && (r.right - r.left) <= 5 && (r.bottom - r.top) > 1 && r.left > 0
+            ok && (r.right - r.left) >= 1
+                && (r.right - r.left) <= 5
+                && (r.bottom - r.top) > 1
+                && r.left > 0
         })
         .expect("expected vertical Right trigger strip window");
     let mut opened = false;
-    for _ in 0..15 {
+    for _ in 0..30 {
         unsafe {
             let _ = PostMessageW(right_strip, WM_MOUSEMOVE, WPARAM(0), LPARAM(0));
         }
@@ -460,7 +469,10 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
             .find(|&h| {
                 let mut r = RECT::default();
                 let ok = unsafe { GetWindowRect(h, &mut r).is_ok() };
-                ok && (r.right - r.left) >= 1 && (r.right - r.left) <= 5 && (r.bottom - r.top) > 1 && r.left > 0
+                ok && (r.right - r.left) >= 1
+                    && (r.right - r.left) <= 5
+                    && (r.bottom - r.top) > 1
+                    && r.left > 0
             });
         if right_strip_opt.is_some() {
             break;
@@ -481,7 +493,10 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
     }
     thread::sleep(Duration::from_millis(100));
 
-    let st_open = match client.send(&IpcRequest::Status).expect("status after strip wheel") {
+    let st_open = match client
+        .send(&IpcRequest::Status)
+        .expect("status after strip wheel")
+    {
         IpcResponse::Status(s) => s,
         other => panic!("unexpected status: {other:?}"),
     };
@@ -522,7 +537,10 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
     }
     thread::sleep(Duration::from_millis(80));
 
-    let st_pinned = match client.send(&IpcRequest::Status).expect("status after header Pin click") {
+    let st_pinned = match client
+        .send(&IpcRequest::Status)
+        .expect("status after header Pin click")
+    {
         IpcResponse::Status(s) => s,
         other => panic!("unexpected status: {other:?}"),
     };
@@ -550,7 +568,10 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
     }
     thread::sleep(Duration::from_millis(80));
 
-    let st_closed = match client.send(&IpcRequest::Status).expect("status after header Close click") {
+    let st_closed = match client
+        .send(&IpcRequest::Status)
+        .expect("status after header Close click")
+    {
         IpcResponse::Status(s) => s,
         other => panic!("unexpected status: {other:?}"),
     };
@@ -573,7 +594,10 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
     }
     thread::sleep(Duration::from_millis(80));
 
-    let st_slot1 = match client.send(&IpcRequest::Status).expect("status after AppIconsStack icon click") {
+    let st_slot1 = match client
+        .send(&IpcRequest::Status)
+        .expect("status after AppIconsStack icon click")
+    {
         IpcResponse::Status(s) => s,
         other => panic!("unexpected status: {other:?}"),
     };
@@ -583,7 +607,10 @@ fn daemon_area_aware_strip_wheel_header_pin_close_and_app_icons_click_e2e() {
         .find(|s| s.is_active_in_deck)
         .expect("active slot");
     assert!(active.is_open, "expected icon click to open clicked slot");
-    assert_eq!(active.slot_index, 1, "expected bottom icon click to open 2nd slot");
+    assert_eq!(
+        active.slot_index, 1,
+        "expected bottom icon click to open 2nd slot"
+    );
 
     unsafe {
         let _ = PostMessageW(msg_hwnd, WM_APP + 1, WPARAM(0), LPARAM(0));

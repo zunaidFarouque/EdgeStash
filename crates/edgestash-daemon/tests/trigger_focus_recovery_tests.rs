@@ -1,22 +1,21 @@
-use edgestash_daemon::crash_recovery::{
-    CrashManifest, CrashRecoveryEntry, recover_orphans_with,
-};
+use edgestash_daemon::crash_recovery::{CrashManifest, CrashRecoveryEntry, recover_orphans_with};
 use edgestash_daemon::focus::{DismissalAction, DismissalController};
 use edgestash_daemon::platform::win32::is_non_fullscreen_shell_or_internal_class;
 use edgestash_daemon::platform::{Clock, FakeClock, MonitorInfo, WindowHandle};
+use edgestash_daemon::renderer::DimScrimFade;
 use edgestash_daemon::trigger::{
-    AreaAwareScrollController, CharmsStateMachine, DirectedCharmsDetector,
-    DragCaptureStateMachine, DragDropTarget, EdgeBumpStateMachine, EdgeHoverStateMachine,
-    StripScrollDecision, allows_pill_click, allows_pill_hover, allows_strip_hover,
-    area_scroll_shade_rect, compute_churn_preview_rect, compute_dim_scrim_insert_after,
-    compute_drop_preview_rect, compute_edge_band_rect, compute_edge_band_rect_inset,
-    corner_candidate_edges, detect_drag_drop_zone, detect_drag_drop_zone_ext,
-    detect_near_edge, detect_near_edge_ext, edge_pill_rect,
-    edge_pill_rect_for_style, hit_test_pill_slot_index, is_strip_input_transparent,
+    AreaAwareScrollController, CharmsStateMachine, DirectedCharmsDetector, DragCaptureStateMachine,
+    DragDropTarget, EdgeBumpStateMachine, EdgeHoverStateMachine, StripScrollDecision,
+    allows_pill_click, allows_pill_hover, allows_strip_hover, area_scroll_shade_rect,
+    compute_churn_preview_rect, compute_dim_scrim_insert_after, compute_drop_preview_rect,
+    compute_edge_band_rect, compute_edge_band_rect_inset, corner_candidate_edges,
+    detect_drag_drop_zone, detect_drag_drop_zone_ext, detect_near_edge, detect_near_edge_ext,
+    edge_pill_rect, edge_pill_rect_for_style, hit_test_pill_slot_index, is_strip_input_transparent,
     should_pill_be_visible,
 };
-use edgestash_daemon::renderer::DimScrimFade;
-use edgestash_ipc::config::{AreaAwareScrollMode, DragDropModifierKey, EdgeStashConfig, GestureMode};
+use edgestash_ipc::config::{
+    AreaAwareScrollMode, DragDropModifierKey, EdgeStashConfig, GestureMode,
+};
 use edgestash_ipc::types::{ChurnZoneId, DockMode, EdgePillStyle, Rect, ScreenEdge};
 
 fn mon() -> MonitorInfo {
@@ -118,7 +117,10 @@ fn edge_bump_state_machine_maintains_dwell_while_moving_in_push_band() {
 
     // Moving while pushing: x moves to 1914, 1911, 1915 (within 12px push band)
     assert!(!bump.update(&m, ScreenEdge::Right, (1914, 510), 1030));
-    assert!(bump.is_armed(), "Micro-jitter within 12px push band must not abort dwell!");
+    assert!(
+        bump.is_armed(),
+        "Micro-jitter within 12px push band must not abort dwell!"
+    );
 
     assert!(!bump.update(&m, ScreenEdge::Right, (1911, 520), 1060));
     assert!(bump.is_armed(), "Still in push band, dwell continues!");
@@ -142,7 +144,10 @@ fn directed_charms_arms_in_32px_corner_and_rearms_on_corner_return() {
     // Natural sweep into top-right corner: x=1900 (20px from right), y=15 (15px from top)
     // Must arm! (Not be rejected by an overly strict 8px box)
     assert!(detector.update(&m, (1900, 15), 1000).is_empty());
-    assert!(detector.is_any_armed(), "32px corner box must arm natural sweeps!");
+    assert!(
+        detector.is_any_armed(),
+        "32px corner box must arm natural sweeps!"
+    );
 
     // Slide down to y=65 along right edge -> triggers TopRightDown
     let fired = detector.update(&m, (1905, 65), 1100);
@@ -151,7 +156,10 @@ fn directed_charms_arms_in_32px_corner_and_rearms_on_corner_return() {
     // Move back UP into the top-right corner along the bezel (without moving into center of screen)
     let re_fired = detector.update(&m, (1910, 10), 1200);
     assert!(re_fired.is_empty());
-    assert!(detector.is_any_armed(), "Returning to corner must immediately re-arm without lockout!");
+    assert!(
+        detector.is_any_armed(),
+        "Returning to corner must immediately re-arm without lockout!"
+    );
 
     // Slide down again -> triggers again!
     let fired_again = detector.update(&m, (1908, 65), 1300);
@@ -165,12 +173,19 @@ fn directed_charms_triggers_at_absolute_edge_and_rejects_wide_diagonal_sweep() {
 
     // 1. Absolute physical edge test: cursor at extreme bezel x=1919, y=0
     assert!(detector.update(&m, (1919, 0), 1000).is_empty());
-    assert!(detector.is_any_armed(), "Must arm at absolute physical edge x=1919!");
+    assert!(
+        detector.is_any_armed(),
+        "Must arm at absolute physical edge x=1919!"
+    );
 
     // Sliding down strictly on the absolute edge x=1919 (including slight optical overshoot x=1921)
     assert!(detector.update(&m, (1920, 20), 1050).is_empty());
     let fired = detector.update(&m, (1919, 65), 1100);
-    assert_eq!(fired, vec![ChurnZoneId::TopRightDown], "Must trigger cleanly on absolute screen edge!");
+    assert_eq!(
+        fired,
+        vec![ChurnZoneId::TopRightDown],
+        "Must trigger cleanly on absolute screen edge!"
+    );
 
     // Reset detector
     detector.reset();
@@ -183,8 +198,14 @@ fn directed_charms_triggers_at_absolute_edge_and_rejects_wide_diagonal_sweep() {
     // Diagonal sweep moving away from bezel deep inwards towards screen center (x=1800, y=150):
     // Must immediately disarm because it exceeds the permitted corridor!
     let diagonal_fired = detector.update(&m, (1800, 150), 2100);
-    assert!(diagonal_fired.is_empty(), "Wide diagonal sweep must not trigger!");
-    assert!(!detector.is_any_armed(), "Moving inward beyond corridor must disarm!");
+    assert!(
+        diagonal_fired.is_empty(),
+        "Wide diagonal sweep must not trigger!"
+    );
+    assert!(
+        !detector.is_any_armed(),
+        "Moving inward beyond corridor must disarm!"
+    );
 }
 
 #[test]
@@ -460,8 +481,12 @@ fn shared_corner_routing_corridor_drift_pill_hover_and_shell_fullscreen_filter()
     assert!(is_non_fullscreen_shell_or_internal_class("Progman"));
     assert!(is_non_fullscreen_shell_or_internal_class("WorkerW"));
     assert!(is_non_fullscreen_shell_or_internal_class("Shell_TrayWnd"));
-    assert!(is_non_fullscreen_shell_or_internal_class("EdgeStashD2DOverlay"));
-    assert!(is_non_fullscreen_shell_or_internal_class("EdgeStashTriggerStrip"));
+    assert!(is_non_fullscreen_shell_or_internal_class(
+        "EdgeStashD2DOverlay"
+    ));
+    assert!(is_non_fullscreen_shell_or_internal_class(
+        "EdgeStashTriggerStrip"
+    ));
     assert!(!is_non_fullscreen_shell_or_internal_class("UnrealWindow"));
 }
 
@@ -480,15 +505,36 @@ fn app_icons_stack_pill_grows_per_slot_and_hittest_resolves_clicked_icon() {
     let mid_y = 4 + 24 + 12;
     let third_y = 4 + 48 + 12;
     assert_eq!(
-        hit_test_pill_slot_index(p3, ScreenEdge::Right, EdgePillStyle::AppIconsStack, 3, 96, (local_x, first_y)),
+        hit_test_pill_slot_index(
+            p3,
+            ScreenEdge::Right,
+            EdgePillStyle::AppIconsStack,
+            3,
+            96,
+            (local_x, first_y)
+        ),
         Some(0)
     );
     assert_eq!(
-        hit_test_pill_slot_index(p3, ScreenEdge::Right, EdgePillStyle::AppIconsStack, 3, 96, (local_x, mid_y)),
+        hit_test_pill_slot_index(
+            p3,
+            ScreenEdge::Right,
+            EdgePillStyle::AppIconsStack,
+            3,
+            96,
+            (local_x, mid_y)
+        ),
         Some(1)
     );
     assert_eq!(
-        hit_test_pill_slot_index(p3, ScreenEdge::Right, EdgePillStyle::AppIconsStack, 3, 96, (local_x, third_y)),
+        hit_test_pill_slot_index(
+            p3,
+            ScreenEdge::Right,
+            EdgePillStyle::AppIconsStack,
+            3,
+            96,
+            (local_x, third_y)
+        ),
         Some(2)
     );
 
@@ -497,7 +543,14 @@ fn app_icons_stack_pill_grows_per_slot_and_hittest_resolves_clicked_icon() {
     assert_eq!(top3.top, m.work_rect.top);
     assert!(top3.width() > 64);
     assert_eq!(
-        hit_test_pill_slot_index(top3, ScreenEdge::Top, EdgePillStyle::AppIconsStack, 3, 96, (4 + 24 + 12, top3.height() / 2)),
+        hit_test_pill_slot_index(
+            top3,
+            ScreenEdge::Top,
+            EdgePillStyle::AppIconsStack,
+            3,
+            96,
+            (4 + 24 + 12, top3.height() / 2)
+        ),
         Some(1)
     );
 }
@@ -531,7 +584,14 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
     let mut ctrl = AreaAwareScrollController::default();
     ctrl.on_strip_enter(false);
     assert_eq!(
-        ctrl.on_strip_wheel(false, AreaAwareScrollMode::InitialTriggerSession, false, false, true, true),
+        ctrl.on_strip_wheel(
+            false,
+            AreaAwareScrollMode::InitialTriggerSession,
+            false,
+            false,
+            true,
+            true
+        ),
         StripScrollDecision::PassToWindow
     );
 
@@ -540,12 +600,26 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
     let mut initial = AreaAwareScrollController::default();
     initial.on_strip_enter(false);
     assert_eq!(
-        initial.on_strip_wheel(true, AreaAwareScrollMode::InitialTriggerSession, false, false, true, true),
+        initial.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::InitialTriggerSession,
+            false,
+            false,
+            true,
+            true
+        ),
         StripScrollDecision::CycleAndOpenIfClosed
     );
     initial.on_drawer_opened(true, true);
     assert_eq!(
-        initial.on_strip_wheel(true, AreaAwareScrollMode::InitialTriggerSession, false, true, true, true),
+        initial.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::InitialTriggerSession,
+            false,
+            true,
+            true,
+            true
+        ),
         StripScrollDecision::CycleWindow
     );
     // Leaves thin line into drawer window -> disarms empty strip
@@ -558,14 +632,28 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
         true,
     ));
     assert_eq!(
-        initial.on_strip_wheel(true, AreaAwareScrollMode::InitialTriggerSession, false, true, true, true),
+        initial.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::InitialTriggerSession,
+            false,
+            true,
+            true,
+            true
+        ),
         StripScrollDecision::PassToWindow
     );
     // Closing & re-opening resets cleanly
     initial.on_drawer_closed();
     initial.on_strip_enter(false);
     assert_eq!(
-        initial.on_strip_wheel(true, AreaAwareScrollMode::InitialTriggerSession, false, false, true, true),
+        initial.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::InitialTriggerSession,
+            false,
+            false,
+            true,
+            true
+        ),
         StripScrollDecision::CycleAndOpenIfClosed
     );
 
@@ -583,7 +671,14 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
         true,
     ));
     assert_eq!(
-        always.on_strip_wheel(true, AreaAwareScrollMode::AlwaysOnTriggerLine, false, true, true, true),
+        always.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::AlwaysOnTriggerLine,
+            false,
+            true,
+            true,
+            true
+        ),
         StripScrollDecision::CycleWindow
     );
 
@@ -599,7 +694,14 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
         true,
     ));
     assert_eq!(
-        strict.on_strip_wheel(true, AreaAwareScrollMode::OpenSessionStrict, false, false, true, true),
+        strict.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::OpenSessionStrict,
+            false,
+            false,
+            true,
+            true
+        ),
         StripScrollDecision::PassToWindow
     );
     strict.on_drawer_opened(true, true);
@@ -612,7 +714,14 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
         true,
     ));
     assert_eq!(
-        strict.on_strip_wheel(true, AreaAwareScrollMode::OpenSessionStrict, false, true, true, true),
+        strict.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::OpenSessionStrict,
+            false,
+            true,
+            true,
+            true
+        ),
         StripScrollDecision::CycleWindow
     );
     strict.on_strip_leave(true);
@@ -632,7 +741,14 @@ fn area_aware_scroll_controller_supports_disabled_initial_always_and_strict_mode
         true,
     ));
     assert_eq!(
-        strict.on_strip_wheel(true, AreaAwareScrollMode::OpenSessionStrict, false, true, true, true),
+        strict.on_strip_wheel(
+            true,
+            AreaAwareScrollMode::OpenSessionStrict,
+            false,
+            true,
+            true,
+            true
+        ),
         StripScrollDecision::PassToWindow
     );
 
@@ -751,7 +867,7 @@ fn scroll_trigger_line_only_when_open_setting_suppresses_closed_wheel_and_shade(
         true,  // scroll_trigger_line_only_when_open
         false, // is_open = false
         true,
-        true,  // cursor_on_line
+        true, // cursor_on_line
     ));
     assert_eq!(
         ctrl.on_strip_wheel(
@@ -932,8 +1048,14 @@ fn dismissal_controller_ignores_pin_and_active_drag_until_released() {
 
     let mut ctrl = DismissalController::default();
     ctrl.on_drawer_opened(Some(fg), DockMode::FloatingPinned);
-    assert_eq!(ctrl.tick((1600, 500), &rects, false, 1000, &cfg), DismissalAction::None);
-    assert_eq!(ctrl.tick((200, 500), &rects, false, 5000, &cfg), DismissalAction::None);
+    assert_eq!(
+        ctrl.tick((1600, 500), &rects, false, 1000, &cfg),
+        DismissalAction::None
+    );
+    assert_eq!(
+        ctrl.tick((200, 500), &rects, false, 5000, &cfg),
+        DismissalAction::None
+    );
     assert_eq!(
         ctrl.on_foreground_changed(fg, &[stashed], &[], &cfg),
         DismissalAction::None
@@ -942,10 +1064,19 @@ fn dismissal_controller_ignores_pin_and_active_drag_until_released() {
     // Active drag protects FloatingOverlay from hiding while dragging out/in
     ctrl.on_drawer_opened(Some(fg), DockMode::FloatingOverlay);
     ctrl.set_drag_in_progress(true);
-    assert_eq!(ctrl.tick((1600, 500), &rects, false, 100, &cfg), DismissalAction::None);
-    assert_eq!(ctrl.tick((1000, 500), &rects, false, 600, &cfg), DismissalAction::None);
+    assert_eq!(
+        ctrl.tick((1600, 500), &rects, false, 100, &cfg),
+        DismissalAction::None
+    );
+    assert_eq!(
+        ctrl.tick((1000, 500), &rects, false, 600, &cfg),
+        DismissalAction::None
+    );
     ctrl.set_drag_in_progress(false);
-    assert_eq!(ctrl.tick((1000, 500), &rects, false, 650, &cfg), DismissalAction::None);
+    assert_eq!(
+        ctrl.tick((1000, 500), &rects, false, 650, &cfg),
+        DismissalAction::None
+    );
     assert_eq!(
         ctrl.tick((1000, 500), &rects, false, 850, &cfg),
         DismissalAction::HideAndRestoreFocus {
@@ -991,7 +1122,10 @@ fn directed_charms_angled_corridor_and_ergonomic_bezel_pushing() {
     assert!(det.update(&m, (1918, 0), 2000).is_empty());
     // Moving deep into screen center (x = 1800, y = 150, inward distance = 120px > 68px allowed)
     assert!(det.update(&m, (1800, 150), 2100).is_empty());
-    assert!(!det.is_any_armed(), "Steep inward drift beyond 45° must disarm to Idle");
+    assert!(
+        !det.is_any_armed(),
+        "Steep inward drift beyond 45° must disarm to Idle"
+    );
 
     // 4. Configurable angle: with 65° allowed angle, tan(65°) ≈ 2.14, inward expansion at 40px is ~86px,
     // so downward slide to (1840, 90) (inward drift = 78px, along Y = 90px) IS allowed!
@@ -1007,7 +1141,10 @@ fn directed_charms_angled_corridor_and_ergonomic_bezel_pushing() {
     det.sync_params_dpi(8, 40, 600, 20, 96);
     assert!(det.update(&m, (1918, 0), 4000).is_empty());
     assert!(det.update(&m, (1865, 50), 4100).is_empty());
-    assert!(!det.is_any_armed(), "Drift exceeding narrow 20° corridor must disarm to Idle");
+    assert!(
+        !det.is_any_armed(),
+        "Drift exceeding narrow 20° corridor must disarm to Idle"
+    );
 }
 
 #[test]
@@ -1141,7 +1278,10 @@ fn drag_drop_top_default_disabled_hotkey_toggle_and_inset_snap_guard() {
     let mut cfg = EdgeStashConfig::default();
     assert!(cfg.drag_drop_left);
     assert!(cfg.drag_drop_right);
-    assert!(!cfg.drag_drop_top, "Top edge drop zones must be disabled by default");
+    assert!(
+        !cfg.drag_drop_top,
+        "Top edge drop zones must be disabled by default"
+    );
     assert!(cfg.drag_drop_bottom);
     assert!(!cfg.drag_drop_require_modifier);
     assert_eq!(cfg.drag_drop_modifier_key, DragDropModifierKey::Shift);
@@ -1155,7 +1295,14 @@ fn drag_drop_top_default_disabled_hotkey_toggle_and_inset_snap_guard() {
     // 2. Top edge disabled ignores top edge dragging
     let top_cursor = (960, 30);
     assert_eq!(
-        detect_drag_drop_zone_ext(&monitors, 80, 96, 0, |e| cfg.is_drag_drop_edge_enabled(e), top_cursor),
+        detect_drag_drop_zone_ext(
+            &monitors,
+            80,
+            96,
+            0,
+            |e| cfg.is_drag_drop_edge_enabled(e),
+            top_cursor
+        ),
         None,
         "Disabled top edge must never trigger drop stashing"
     );
@@ -1163,7 +1310,14 @@ fn drag_drop_top_default_disabled_hotkey_toggle_and_inset_snap_guard() {
     // If user explicitly enables top edge, it triggers
     cfg.drag_drop_top = true;
     assert_eq!(
-        detect_drag_drop_zone_ext(&monitors, 80, 96, 0, |e| cfg.is_drag_drop_edge_enabled(e), top_cursor),
+        detect_drag_drop_zone_ext(
+            &monitors,
+            80,
+            96,
+            0,
+            |e| cfg.is_drag_drop_edge_enabled(e),
+            top_cursor
+        ),
         Some(DragDropTarget::Edge {
             monitor_id: "MON-1".to_string(),
             edge: ScreenEdge::Top,
@@ -1181,7 +1335,14 @@ fn drag_drop_top_default_disabled_hotkey_toggle_and_inset_snap_guard() {
     // Cursor inside the inset zone (1872 - 50 = 1822, Y=500)
     let inside_inset_cursor = (1850, 500);
     assert_eq!(
-        detect_drag_drop_zone_ext(&monitors, 80, 96, inset, |e| cfg.is_drag_drop_edge_enabled(e), inside_inset_cursor),
+        detect_drag_drop_zone_ext(
+            &monitors,
+            80,
+            96,
+            inset,
+            |e| cfg.is_drag_drop_edge_enabled(e),
+            inside_inset_cursor
+        ),
         Some(DragDropTarget::Edge {
             monitor_id: "MON-1".to_string(),
             edge: ScreenEdge::Right,
@@ -1191,7 +1352,14 @@ fn drag_drop_top_default_disabled_hotkey_toggle_and_inset_snap_guard() {
     // Cursor touching physical edge (1918) does NOT activate the inset zone (guarding Win11 snap)
     let physical_edge_cursor = (1918, 500);
     assert_eq!(
-        detect_drag_drop_zone_ext(&monitors, 80, 96, inset, |e| cfg.is_drag_drop_edge_enabled(e), physical_edge_cursor),
+        detect_drag_drop_zone_ext(
+            &monitors,
+            80,
+            96,
+            inset,
+            |e| cfg.is_drag_drop_edge_enabled(e),
+            physical_edge_cursor
+        ),
         None,
         "Cursor touching physical bezel must not activate inset drop zone (allowing native Win11 snap)"
     );
@@ -1221,10 +1389,25 @@ fn drag_drop_top_default_disabled_hotkey_toggle_and_inset_snap_guard() {
 
     // 5. detect_near_edge_ext respects disabled edges and inset
     cfg.drag_drop_top = true;
-    let near_top = detect_near_edge_ext(&monitors, 100, 48, |e| cfg.is_drag_drop_edge_enabled(e), (960, 50));
+    let near_top = detect_near_edge_ext(
+        &monitors,
+        100,
+        48,
+        |e| cfg.is_drag_drop_edge_enabled(e),
+        (960, 50),
+    );
     assert_eq!(near_top.map(|(_, e)| e), Some(ScreenEdge::Top));
 
     cfg.drag_drop_top = false;
-    let near_top_disabled = detect_near_edge_ext(&monitors, 100, 48, |e| cfg.is_drag_drop_edge_enabled(e), (960, 50));
-    assert_eq!(near_top_disabled, None, "Disabled top edge must never be picked by proximity detection");
+    let near_top_disabled = detect_near_edge_ext(
+        &monitors,
+        100,
+        48,
+        |e| cfg.is_drag_drop_edge_enabled(e),
+        (960, 50),
+    );
+    assert_eq!(
+        near_top_disabled, None,
+        "Disabled top edge must never be picked by proximity detection"
+    );
 }

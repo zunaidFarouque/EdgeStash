@@ -3,8 +3,8 @@ use std::io::{self, Read, Write};
 use std::ptr;
 
 use windows::Win32::Foundation::{
-    BOOL, CloseHandle, ERROR_FILE_NOT_FOUND, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED,
-    GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree,
+    BOOL, CloseHandle, ERROR_FILE_NOT_FOUND, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, GENERIC_READ,
+    GENERIC_WRITE, GetLastError, HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree,
 };
 use windows::Win32::Security::Authorization::{
     ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -24,8 +24,7 @@ use crate::protocol::{IpcRequest, IpcResponse, read_frame, write_frame};
 
 const PIPE_BUFFER_SIZE: u32 = 65_536;
 // Grants Full Access to Administrators/SYSTEM and Read+Write to Authenticated Users at Medium integrity.
-const CROSS_INTEGRITY_SDDL: &str =
-    "D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)S:(ML;;NW;;;ME)";
+const CROSS_INTEGRITY_SDDL: &str = "D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)S:(ML;;NW;;;ME)";
 const FALLBACK_DACL_SDDL: &str = "D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)";
 
 struct OwnedHandle(HANDLE);
@@ -48,8 +47,13 @@ impl Read for OwnedHandle {
         let mut bytes_read = 0u32;
         let to_read = u32::try_from(buf.len()).unwrap_or(u32::MAX);
         unsafe {
-            ReadFile(self.0, Some(&mut buf[..to_read as usize]), Some(&mut bytes_read), None)
-                .map_err(win32_err_to_io)?;
+            ReadFile(
+                self.0,
+                Some(&mut buf[..to_read as usize]),
+                Some(&mut bytes_read),
+                None,
+            )
+            .map_err(win32_err_to_io)?;
         }
         Ok(bytes_read as usize)
     }
@@ -60,8 +64,13 @@ impl Write for OwnedHandle {
         let mut bytes_written = 0u32;
         let to_write = u32::try_from(buf.len()).unwrap_or(u32::MAX);
         unsafe {
-            WriteFile(self.0, Some(&buf[..to_write as usize]), Some(&mut bytes_written), None)
-                .map_err(win32_err_to_io)?;
+            WriteFile(
+                self.0,
+                Some(&buf[..to_write as usize]),
+                Some(&mut bytes_written),
+                None,
+            )
+            .map_err(win32_err_to_io)?;
         }
         Ok(bytes_written as usize)
     }
@@ -140,7 +149,9 @@ impl PipeServer {
                 .unwrap_or(ptr::null_mut::<c_void>()),
             bInheritHandle: BOOL(0),
         };
-        let sa_ptr = sd_guard.as_ref().map(|_| &mut sa as *mut SECURITY_ATTRIBUTES);
+        let sa_ptr = sd_guard
+            .as_ref()
+            .map(|_| &mut sa as *mut SECURITY_ATTRIBUTES);
 
         let handle = unsafe {
             CreateNamedPipeW(

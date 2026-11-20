@@ -61,6 +61,8 @@ fn named_pipe_roundtrips_multiple_requests_across_threads() {
 fn pipe_client_returns_error_when_daemon_not_running() {
     let pipe_name = unique_pipe_name();
     let client = PipeClient::new(&pipe_name);
-    let err = client.send(&IpcRequest::Ping).expect_err("no server listening");
+    let err = client
+        .send(&IpcRequest::Ping)
+        .expect_err("no server listening");
     assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
 }

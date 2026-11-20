@@ -72,7 +72,9 @@ where
         "ping" => IpcRequest::Ping,
         "status" => IpcRequest::Status,
         "stash" => {
-            let edge_str = positionals.get(1).ok_or("stash requires an edge (left|right|top|bottom)")?;
+            let edge_str = positionals
+                .get(1)
+                .ok_or("stash requires an edge (left|right|top|bottom)")?;
             let edge = parse_edge(edge_str)?;
             match hwnd_flag {
                 Some(hwnd) => IpcRequest::StashWindow {
@@ -116,8 +118,12 @@ where
             }
         }
         "dock" => {
-            let edge_str = positionals.get(1).ok_or("dock requires <edge> <floating|docked>")?;
-            let mode_str = positionals.get(2).ok_or("dock requires <floating|docked>")?;
+            let edge_str = positionals
+                .get(1)
+                .ok_or("dock requires <edge> <floating|docked>")?;
+            let mode_str = positionals
+                .get(2)
+                .ok_or("dock requires <floating|docked>")?;
             IpcRequest::SetDockMode {
                 monitor_id: monitor_flag,
                 edge: parse_edge(edge_str)?,
@@ -125,8 +131,12 @@ where
             }
         }
         "vdesktop" => {
-            let hwnd_str = positionals.get(1).ok_or("vdesktop requires <hwnd> <all|current>")?;
-            let mode_str = positionals.get(2).ok_or("vdesktop requires <all|current>")?;
+            let hwnd_str = positionals
+                .get(1)
+                .ok_or("vdesktop requires <hwnd> <all|current>")?;
+            let mode_str = positionals
+                .get(2)
+                .ok_or("vdesktop requires <all|current>")?;
             let hwnd = hwnd_str
                 .parse::<isize>()
                 .map_err(|_| format!("invalid hwnd '{hwnd_str}'"))?;
@@ -172,7 +182,9 @@ fn parse_edge(raw: &str) -> Result<ScreenEdge, String> {
         "r" | "right" => Ok(ScreenEdge::Right),
         "t" | "top" => Ok(ScreenEdge::Top),
         "b" | "bottom" => Ok(ScreenEdge::Bottom),
-        _ => Err(format!("invalid edge '{raw}' (expected left|right|top|bottom)")),
+        _ => Err(format!(
+            "invalid edge '{raw}' (expected left|right|top|bottom)"
+        )),
     }
 }
 
@@ -181,7 +193,9 @@ fn parse_dock_mode(raw: &str) -> Result<DockMode, String> {
         "floating" | "overlay" | "unpin" => Ok(DockMode::FloatingOverlay),
         "pinned" | "pin" | "floating-pin" => Ok(DockMode::FloatingPinned),
         "docked" | "dock" | "native" => Ok(DockMode::NativeWorkAreaDock),
-        _ => Err(format!("invalid dock mode '{raw}' (expected floating|pinned|docked)")),
+        _ => Err(format!(
+            "invalid dock mode '{raw}' (expected floating|pinned|docked)"
+        )),
     }
 }
 
@@ -206,7 +220,7 @@ fn usage_text() -> String {
 /// Formats an [`IpcResponse`] for terminal display.
 pub fn format_response(resp: &IpcResponse, json_output: bool) -> String {
     if json_output {
-        return serde_json::to_string_pretty(resp).unwrap_or_else(|_| "{}" .to_string());
+        return serde_json::to_string_pretty(resp).unwrap_or_else(|_| "{}".to_string());
     }
     match resp {
         IpcResponse::Pong { version, pid } => format!("pong v{version} (pid={pid})"),
@@ -216,7 +230,11 @@ pub fn format_response(resp: &IpcResponse, json_output: bool) -> String {
             if st.slots.is_empty() {
                 return format!("daemon pid={} | no stashed windows", st.pid);
             }
-            let mut lines = vec![format!("daemon pid={} | {} slot(s):", st.pid, st.slots.len())];
+            let mut lines = vec![format!(
+                "daemon pid={} | {} slot(s):",
+                st.pid,
+                st.slots.len()
+            )];
             for slot in &st.slots {
                 let titles: Vec<String> = slot
                     .windows
@@ -231,7 +249,11 @@ pub fn format_response(resp: &IpcResponse, json_output: bool) -> String {
                     slot.is_open,
                     slot.is_active_in_deck,
                     slot.dock_mode,
-                    if slot.needs_attention { " [ATTENTION]" } else { "" },
+                    if slot.needs_attention {
+                        " [ATTENTION]"
+                    } else {
+                        ""
+                    },
                     titles.join(" + ")
                 ));
             }

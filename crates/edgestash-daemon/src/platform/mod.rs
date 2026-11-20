@@ -153,7 +153,11 @@ pub trait WindowSystem {
     fn force_restore_foreground_window(&self, target: WindowHandle);
     fn set_foreground_window(&self, target: WindowHandle);
 
-    fn prepare_window_for_stash(&self, hwnd: WindowHandle, ex_style: isize) -> Result<(), WindowAccessError>;
+    fn prepare_window_for_stash(
+        &self,
+        hwnd: WindowHandle,
+        ex_style: isize,
+    ) -> Result<(), WindowAccessError>;
     fn hide_from_taskbar(&self, _hwnd: WindowHandle) {}
     fn restore_window_from_stash(
         &self,

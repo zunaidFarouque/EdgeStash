@@ -3,8 +3,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use edgestash_ipc::config::{EdgeStashConfig, GestureMode, HotkeySpec};
 use edgestash_ipc::config::ChurnZoneAction;
+use edgestash_ipc::config::{EdgeStashConfig, GestureMode, HotkeySpec};
 use edgestash_ipc::protocol::{
     DaemonStatusSnapshot, EdgeSlotSnapshot, IpcErrorCode, IpcRequest, IpcResponse,
     StashedWindowSnapshot,
@@ -49,15 +49,17 @@ impl DaemonClient for MockDaemonClient {
             .lock()
             .unwrap()
             .pop_front()
-            .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::BrokenPipe, "no mock response")))
+            .unwrap_or_else(|| {
+                Err(io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "no mock response",
+                ))
+            })
     }
 }
 
 fn temp_config_path(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "edgestash_ui_test_{name}_{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("edgestash_ui_test_{name}_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir.join("config.toml")
@@ -67,7 +69,10 @@ fn temp_config_path(name: &str) -> PathBuf {
 fn model_loads_defaults_tracks_dirty_and_resets_or_discards() {
     let path = temp_config_path("dirty_reset");
     let mut model = EdgeStashUiModel::load_or_create(path.clone()).expect("load or create config");
-    assert!(path.exists(), "load_or_create must write initial config.toml");
+    assert!(
+        path.exists(),
+        "load_or_create must write initial config.toml"
+    );
     assert!(!model.is_dirty());
     assert_eq!(model.draft_config.gesture_mode, GestureMode::EdgeBump);
     assert_eq!(model.draft_config.edge_bump_dwell_ms, 80);
@@ -86,7 +91,6 @@ fn model_loads_defaults_tracks_dirty_and_resets_or_discards() {
 
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
-
 
 #[test]
 fn apply_and_save_clamps_validates_writes_toml_and_reloads_daemon_over_ipc() {
@@ -122,7 +126,6 @@ fn apply_and_save_clamps_validates_writes_toml_and_reloads_daemon_over_ipc() {
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
 
-
 #[test]
 fn apply_and_save_rejects_invalid_hotkey_and_preserves_saved_file() {
     let path = temp_config_path("invalid_hotkey");
@@ -147,7 +150,6 @@ fn apply_and_save_rejects_invalid_hotkey_and_preserves_saved_file() {
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
 
-
 #[test]
 fn apply_and_save_still_persists_when_daemon_is_offline() {
     let path = temp_config_path("offline_save");
@@ -161,7 +163,9 @@ fn apply_and_save_still_persists_when_daemon_is_offline() {
 
     assert!(!model.is_dirty());
     assert_eq!(
-        EdgeStashConfig::load_or_create_at(&path).unwrap().edge_dwell_ms,
+        EdgeStashConfig::load_or_create_at(&path)
+            .unwrap()
+            .edge_dwell_ms,
         240
     );
     assert!(matches!(
@@ -175,7 +179,6 @@ fn apply_and_save_still_persists_when_daemon_is_offline() {
 
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
-
 
 #[test]
 fn refresh_daemon_and_dispatch_live_slot_actions_update_snapshot() {
@@ -261,7 +264,6 @@ fn refresh_daemon_and_dispatch_live_slot_actions_update_snapshot() {
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
 
-
 #[test]
 fn hotkey_capture_formats_modifiers_and_primary_keys_roundtrip_with_ipc_parser() {
     let mods = egui::Modifiers {
@@ -271,8 +273,8 @@ fn hotkey_capture_formats_modifiers_and_primary_keys_roundtrip_with_ipc_parser()
         mac_cmd: false,
         command: false,
     };
-    let captured = format_captured_hotkey(mods, egui::Key::Backslash)
-        .expect("Ctrl+Alt+Backslash must format");
+    let captured =
+        format_captured_hotkey(mods, egui::Key::Backslash).expect("Ctrl+Alt+Backslash must format");
     assert_eq!(captured, "Ctrl+Alt+\\");
     assert!(HotkeySpec::parse(&captured).is_ok());
 
@@ -301,7 +303,8 @@ fn hotkey_capture_formats_modifiers_and_primary_keys_roundtrip_with_ipc_parser()
 
 #[test]
 fn resolve_daemon_binary_finds_sibling_or_fallback() {
-    let resolved = resolve_daemon_binary_path(Some(Path::new(r"C:\Tools\EdgeStash\edgestash-ui.exe")));
+    let resolved =
+        resolve_daemon_binary_path(Some(Path::new(r"C:\Tools\EdgeStash\edgestash-ui.exe")));
     assert_eq!(
         resolved,
         PathBuf::from(r"C:\Tools\EdgeStash\edgestash-daemon.exe")
@@ -341,13 +344,18 @@ fn ui_model_validates_dim_fade_area_aware_scroll_and_floating_pinned_defaults() 
     );
     assert!(model.is_dirty());
 
-    model.save_draft_to_disk().expect("save draft clamps dim fade");
+    model
+        .save_draft_to_disk()
+        .expect("save draft clamps dim fade");
     assert_eq!(model.saved_config.dim_fade_duration_ms, 2000);
     assert_eq!(model.saved_config.dock_mode, DockMode::FloatingPinned);
     assert!(!model.saved_config.lock_stashed_position);
     assert!(model.saved_config.auto_hide_pill);
     assert_eq!(
-        model.saved_config.churn_zones.get(ChurnZoneId::BottomRightUp),
+        model
+            .saved_config
+            .churn_zones
+            .get(ChurnZoneId::BottomRightUp),
         &ChurnZoneAction::SpecificApp {
             matcher: "music".to_string()
         }
@@ -370,9 +378,18 @@ fn save_and_load_named_preset_generates_actual_config_file() {
     model.draft_config.drag_drop_top = true;
 
     // 1. Validation rejects invalid preset names
-    assert!(model.save_as_named_preset("   ").is_err(), "Empty preset name must fail");
-    assert!(model.save_as_named_preset("Bad/Name").is_err(), "Invalid path chars must fail");
-    assert!(model.save_as_named_preset("Bad:Name").is_err(), "Invalid colon must fail");
+    assert!(
+        model.save_as_named_preset("   ").is_err(),
+        "Empty preset name must fail"
+    );
+    assert!(
+        model.save_as_named_preset("Bad/Name").is_err(),
+        "Invalid path chars must fail"
+    );
+    assert!(
+        model.save_as_named_preset("Bad:Name").is_err(),
+        "Invalid colon must fail"
+    );
 
     // 2. Saving as named preset generates the actual file on disk
     let preset_name = "Test_Workspace_Preset_999";
@@ -380,7 +397,10 @@ fn save_and_load_named_preset_generates_actual_config_file() {
         .save_as_named_preset(preset_name)
         .expect("Named preset should save successfully");
 
-    assert!(saved_path.is_file(), "Generated preset config file must exist on disk");
+    assert!(
+        saved_path.is_file(),
+        "Generated preset config file must exist on disk"
+    );
     assert!(saved_path.ends_with(format!("{}.toml", preset_name)));
 
     // 3. Inspect generated file content

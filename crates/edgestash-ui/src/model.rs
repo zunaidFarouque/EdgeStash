@@ -164,14 +164,16 @@ impl EdgeStashUiModel {
         }
 
         self.draft_config.validate_and_clamp();
-        self.draft_config.save_to_at(&self.config_path).map_err(|err| {
-            let msg = format!("Failed saving {}: {err}", self.config_path.display());
-            self.banner = Some(StatusBanner {
-                kind: BannerKind::Error,
-                message: msg.clone(),
-            });
-            msg
-        })?;
+        self.draft_config
+            .save_to_at(&self.config_path)
+            .map_err(|err| {
+                let msg = format!("Failed saving {}: {err}", self.config_path.display());
+                self.banner = Some(StatusBanner {
+                    kind: BannerKind::Error,
+                    message: msg.clone(),
+                });
+                msg
+            })?;
         self.saved_config = self.draft_config.clone();
         self.capturing_hotkey = None;
         Ok(())
@@ -220,7 +222,9 @@ impl EdgeStashUiModel {
             Ok(IpcResponse::Error { message, .. }) => {
                 self.banner = Some(StatusBanner {
                     kind: BannerKind::Warning,
-                    message: format!("Saved config.toml, but daemon reload returned error: {message}"),
+                    message: format!(
+                        "Saved config.toml, but daemon reload returned error: {message}"
+                    ),
                 });
             }
             Ok(_) => {

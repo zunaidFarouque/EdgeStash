@@ -44,7 +44,10 @@ pub fn get_invisible_border_insets(hwnd: HWND) -> Result<BorderInsets> {
             size_of::<RECT>() as u32,
         )?;
 
-        Ok(BorderInsets::from_rects(window_rect.into(), frame_rect.into()))
+        Ok(BorderInsets::from_rects(
+            window_rect.into(),
+            frame_rect.into(),
+        ))
     }
 }
 

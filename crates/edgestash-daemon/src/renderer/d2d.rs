@@ -11,9 +11,7 @@ use windows::Win32::Graphics::Direct2D::{
     D2D1_DEVICE_CONTEXT_OPTIONS_NONE, D2D1_DRAW_TEXT_OPTIONS_CLIP, D2D1_ELLIPSE, D2D1_ROUNDED_RECT,
     D2D1CreateDevice, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext, ID2D1SolidColorBrush,
 };
-use windows::Win32::Graphics::Direct3D::{
-    D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP,
-};
+use windows::Win32::Graphics::Direct3D::{D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP};
 use windows::Win32::Graphics::Direct3D11::{
     D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice, ID3D11Device,
 };
@@ -23,9 +21,9 @@ use windows::Win32::Graphics::DirectComposition::{
 use windows::Win32::Graphics::DirectWrite::{
     DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
     DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_MEASURING_MODE_NATURAL,
-    DWRITE_PARAGRAPH_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_CENTER,
-    DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TRIMMING, DWRITE_TRIMMING_GRANULARITY_CHARACTER,
-    DWRITE_WORD_WRAPPING_NO_WRAP, DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat,
+    DWRITE_PARAGRAPH_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_LEADING,
+    DWRITE_TRIMMING, DWRITE_TRIMMING_GRANULARITY_CHARACTER, DWRITE_WORD_WRAPPING_NO_WRAP,
+    DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat,
 };
 use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC,
@@ -39,8 +37,7 @@ use windows::Win32::Graphics::Gdi::{
     DeleteObject, GetDIBits, GetObjectW,
 };
 use windows::Win32::System::Threading::{
-    OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
-    QueryFullProcessImageNameW,
+    OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
 };
 use windows::Win32::UI::Shell::{SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON, SHGetFileInfoW};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -137,7 +134,8 @@ impl D2DGraphicsContext {
         let dxgi_factory: IDXGIFactory2 = unsafe { adapter.GetParent()? };
 
         let d2d_device = unsafe { D2D1CreateDevice(&dxgi_device, None)? };
-        let d2d_context = unsafe { d2d_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)? };
+        let d2d_context =
+            unsafe { d2d_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)? };
         let dcomp_device: IDCompositionDevice = unsafe { DCompositionCreateDevice(&dxgi_device)? };
         let dwrite_factory: Option<IDWriteFactory> =
             unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).ok() };
@@ -222,8 +220,13 @@ impl D2DWindowSurface {
         if self.width != w || self.height != h {
             unsafe {
                 self.d2d_context.SetTarget(None);
-                self.swap_chain
-                    .ResizeBuffers(2, w, h, DXGI_FORMAT_B8G8R8A8_UNORM, windows::Win32::Graphics::Dxgi::DXGI_SWAP_CHAIN_FLAG(0))?;
+                self.swap_chain.ResizeBuffers(
+                    2,
+                    w,
+                    h,
+                    DXGI_FORMAT_B8G8R8A8_UNORM,
+                    windows::Win32::Graphics::Dxgi::DXGI_SWAP_CHAIN_FLAG(0),
+                )?;
             }
             self.width = w;
             self.height = h;
@@ -417,7 +420,8 @@ impl D2DWindowSurface {
         unsafe {
             self.d2d_context.FillRoundedRectangle(&outer, &bg_brush);
             if attention_count > 0 && slots.len() <= 1 {
-                self.d2d_context.FillRoundedRectangle(&outer, &amber_bg_brush);
+                self.d2d_context
+                    .FillRoundedRectangle(&outer, &amber_bg_brush);
                 self.d2d_context
                     .DrawRoundedRectangle(&outer, &amber_halo_brush, 2.0, None);
             } else {
@@ -523,12 +527,16 @@ impl D2DWindowSurface {
                 let badge_cx = (wf - badge_r - 2.0).max(badge_r);
                 let badge_cy = badge_r + 2.0;
                 let badge_ellipse = D2D1_ELLIPSE {
-                    point: D2D_POINT_2F { x: badge_cx, y: badge_cy },
+                    point: D2D_POINT_2F {
+                        x: badge_cx,
+                        y: badge_cy,
+                    },
                     radiusX: badge_r,
                     radiusY: badge_r,
                 };
                 unsafe {
-                    self.d2d_context.FillEllipse(&badge_ellipse, &amber_dot_brush);
+                    self.d2d_context
+                        .FillEllipse(&badge_ellipse, &amber_dot_brush);
                 }
                 if let Some(badge_fmt) = self.create_text_format(8.5, true, true) {
                     let badge_rect = D2D_RECT_F {
@@ -582,21 +590,31 @@ impl D2DWindowSurface {
                 };
                 unsafe {
                     if is_active {
-                        self.d2d_context.FillRoundedRectangle(&cell_rr, &active_bg_brush);
+                        self.d2d_context
+                            .FillRoundedRectangle(&cell_rr, &active_bg_brush);
                         self.d2d_context
                             .DrawRoundedRectangle(&cell_rr, &accent_brush, 1.3, None);
                     } else if needs_att {
-                        self.d2d_context.FillRoundedRectangle(&cell_rr, &amber_bg_brush);
                         self.d2d_context
-                            .DrawRoundedRectangle(&cell_rr, &amber_halo_brush, 1.8, None);
+                            .FillRoundedRectangle(&cell_rr, &amber_bg_brush);
+                        self.d2d_context.DrawRoundedRectangle(
+                            &cell_rr,
+                            &amber_halo_brush,
+                            1.8,
+                            None,
+                        );
                     } else {
-                        self.d2d_context.FillRoundedRectangle(&cell_rr, &inactive_bg_brush);
+                        self.d2d_context
+                            .FillRoundedRectangle(&cell_rr, &inactive_bg_brush);
                     }
                     if needs_att {
                         let dot_cx = cell.right - 4.5;
                         let dot_cy = cell.top + 4.5;
                         let dot = D2D1_ELLIPSE {
-                            point: D2D_POINT_2F { x: dot_cx, y: dot_cy },
+                            point: D2D_POINT_2F {
+                                x: dot_cx,
+                                y: dot_cy,
+                            },
                             radiusX: 3.5,
                             radiusY: 3.5,
                         };
@@ -606,8 +624,8 @@ impl D2DWindowSurface {
 
                 let cx = (cell.left + cell.right) * 0.5;
                 let cy = (cell.top + cell.bottom) * 0.5;
-                let icon_size = ((cell.right - cell.left).min(cell.bottom - cell.top) - 4.0)
-                    .clamp(10.0, 18.0);
+                let icon_size =
+                    ((cell.right - cell.left).min(cell.bottom - cell.top) - 4.0).clamp(10.0, 18.0);
                 let half = icon_size * 0.5;
                 let dest = D2D_RECT_F {
                     left: cx - half,
@@ -677,7 +695,11 @@ impl D2DWindowSurface {
                 } else {
                     (step * (i as f32 + 1.0), hf / 2.0)
                 };
-                let dot_r = if i == active_index || needs_att { 3.5 } else { 2.2 };
+                let dot_r = if i == active_index || needs_att {
+                    3.5
+                } else {
+                    2.2
+                };
                 let ellipse = D2D1_ELLIPSE {
                     point: D2D_POINT_2F { x: cx, y: cy },
                     radiusX: dot_r,
@@ -724,7 +746,10 @@ impl D2DWindowSurface {
         unsafe {
             self.d2d_context.FillRectangle(&bar_rect, &bg_brush);
             self.d2d_context.DrawLine(
-                D2D_POINT_2F { x: 0.0, y: hf - 0.5 },
+                D2D_POINT_2F {
+                    x: 0.0,
+                    y: hf - 0.5,
+                },
                 D2D_POINT_2F { x: wf, y: hf - 0.5 },
                 &bottom_border,
                 1.0,
@@ -786,15 +811,27 @@ impl D2DWindowSurface {
                     let d = 4.5;
                     unsafe {
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx - d, y: cy - d },
-                            D2D_POINT_2F { x: cx + d, y: cy + d },
+                            D2D_POINT_2F {
+                                x: cx - d,
+                                y: cy - d,
+                            },
+                            D2D_POINT_2F {
+                                x: cx + d,
+                                y: cy + d,
+                            },
                             &glyph_brush,
                             1.6,
                             None,
                         );
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx + d, y: cy - d },
-                            D2D_POINT_2F { x: cx - d, y: cy + d },
+                            D2D_POINT_2F {
+                                x: cx + d,
+                                y: cy - d,
+                            },
+                            D2D_POINT_2F {
+                                x: cx - d,
+                                y: cy + d,
+                            },
                             &glyph_brush,
                             1.6,
                             None,
@@ -824,22 +861,40 @@ impl D2DWindowSurface {
                         self.d2d_context
                             .DrawRoundedRectangle(&box_r, &glyph_brush, 1.3, None);
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx - 1.0, y: cy + 1.0 },
-                            D2D_POINT_2F { x: cx + 5.5, y: cy - 5.5 },
+                            D2D_POINT_2F {
+                                x: cx - 1.0,
+                                y: cy + 1.0,
+                            },
+                            D2D_POINT_2F {
+                                x: cx + 5.5,
+                                y: cy - 5.5,
+                            },
                             &glyph_brush,
                             1.5,
                             None,
                         );
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx + 1.5, y: cy - 5.5 },
-                            D2D_POINT_2F { x: cx + 5.5, y: cy - 5.5 },
+                            D2D_POINT_2F {
+                                x: cx + 1.5,
+                                y: cy - 5.5,
+                            },
+                            D2D_POINT_2F {
+                                x: cx + 5.5,
+                                y: cy - 5.5,
+                            },
                             &glyph_brush,
                             1.5,
                             None,
                         );
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx + 5.5, y: cy - 5.5 },
-                            D2D_POINT_2F { x: cx + 5.5, y: cy - 1.5 },
+                            D2D_POINT_2F {
+                                x: cx + 5.5,
+                                y: cy - 5.5,
+                            },
+                            D2D_POINT_2F {
+                                x: cx + 5.5,
+                                y: cy - 1.5,
+                            },
                             &glyph_brush,
                             1.5,
                             None,
@@ -851,16 +906,24 @@ impl D2DWindowSurface {
                         DockMode::FloatingPinned => {
                             unsafe {
                                 self.d2d_context.FillRoundedRectangle(&rr, &pin_float_bg);
-                                self.d2d_context
-                                    .DrawRoundedRectangle(&rr, &pin_float_stroke, 1.1, None);
+                                self.d2d_context.DrawRoundedRectangle(
+                                    &rr,
+                                    &pin_float_stroke,
+                                    1.1,
+                                    None,
+                                );
                             }
                             &pin_float_stroke
                         }
                         DockMode::NativeWorkAreaDock => {
                             unsafe {
                                 self.d2d_context.FillRoundedRectangle(&rr, &pin_dock_bg);
-                                self.d2d_context
-                                    .DrawRoundedRectangle(&rr, &pin_dock_stroke, 1.1, None);
+                                self.d2d_context.DrawRoundedRectangle(
+                                    &rr,
+                                    &pin_dock_stroke,
+                                    1.1,
+                                    None,
+                                );
                             }
                             &pin_dock_stroke
                         }
@@ -885,22 +948,40 @@ impl D2DWindowSurface {
                         };
                         self.d2d_context.DrawRectangle(&head, stroke, 1.4, None);
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx - 5.0, y: cy + 1.0 },
-                            D2D_POINT_2F { x: cx + 5.0, y: cy + 1.0 },
+                            D2D_POINT_2F {
+                                x: cx - 5.0,
+                                y: cy + 1.0,
+                            },
+                            D2D_POINT_2F {
+                                x: cx + 5.0,
+                                y: cy + 1.0,
+                            },
                             stroke,
                             1.5,
                             None,
                         );
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx - 3.0, y: cy - 1.5 },
-                            D2D_POINT_2F { x: cx - 4.0, y: cy + 1.0 },
+                            D2D_POINT_2F {
+                                x: cx - 3.0,
+                                y: cy - 1.5,
+                            },
+                            D2D_POINT_2F {
+                                x: cx - 4.0,
+                                y: cy + 1.0,
+                            },
                             stroke,
                             1.3,
                             None,
                         );
                         self.d2d_context.DrawLine(
-                            D2D_POINT_2F { x: cx + 3.0, y: cy - 1.5 },
-                            D2D_POINT_2F { x: cx + 4.0, y: cy + 1.0 },
+                            D2D_POINT_2F {
+                                x: cx + 3.0,
+                                y: cy - 1.5,
+                            },
+                            D2D_POINT_2F {
+                                x: cx + 4.0,
+                                y: cy + 1.0,
+                            },
                             stroke,
                             1.3,
                             None,
@@ -915,8 +996,14 @@ impl D2DWindowSurface {
                         // For Direct Windows Dock, draw vertical dock bar indicator on right side
                         if visual.dock_mode == DockMode::NativeWorkAreaDock {
                             self.d2d_context.DrawLine(
-                                D2D_POINT_2F { x: rr.rect.right - 3.0, y: rr.rect.top + 3.5 },
-                                D2D_POINT_2F { x: rr.rect.right - 3.0, y: rr.rect.bottom - 3.5 },
+                                D2D_POINT_2F {
+                                    x: rr.rect.right - 3.0,
+                                    y: rr.rect.top + 3.5,
+                                },
+                                D2D_POINT_2F {
+                                    x: rr.rect.right - 3.0,
+                                    y: rr.rect.bottom - 3.5,
+                                },
                                 stroke,
                                 2.0,
                                 None,
@@ -954,59 +1041,226 @@ impl D2DWindowSurface {
         let font_title = self.create_text_format(12.0, true, true);
         let font_sub = self.create_text_format(10.0, false, true);
 
-        let (box_c1, is_c1_active, label_c1, sub_c1,
-             box_center, is_center_active, label_center, sub_center,
-             box_c2, is_c2_active, label_c2, sub_c2) = match edge {
+        let (
+            box_c1,
+            is_c1_active,
+            label_c1,
+            sub_c1,
+            box_center,
+            is_center_active,
+            label_center,
+            sub_center,
+            box_c2,
+            is_c2_active,
+            label_c2,
+            sub_c2,
+        ) = match edge {
             ScreenEdge::Right => {
-                let is_c1 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::TopRightDown | ChurnZoneId::TopRightLeft, .. }));
-                let is_center = matches!(active_target, Some(crate::trigger::DragDropTarget::Edge { edge: ScreenEdge::Right, .. }));
-                let is_c2 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::BottomRightUp | ChurnZoneId::BottomRightLeft, .. }));
+                let is_c1 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::TopRightDown | ChurnZoneId::TopRightLeft,
+                        ..
+                    })
+                );
+                let is_center = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Edge {
+                        edge: ScreenEdge::Right,
+                        ..
+                    })
+                );
+                let is_c2 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::BottomRightUp | ChurnZoneId::BottomRightLeft,
+                        ..
+                    })
+                );
                 (
-                    D2D_RECT_F { left: wf - c_span + 2.0, top: 2.0, right: wf - 2.0, bottom: c_span - 2.0 },
-                    is_c1, "Top-Right", "Flick Trigger",
-                    D2D_RECT_F { left: wf - e_zone + 2.0, top: c_span + 4.0, right: wf - 2.0, bottom: hf - c_span - 4.0 },
-                    is_center, "Stash Right", "Default Edge",
-                    D2D_RECT_F { left: wf - c_span + 2.0, top: hf - c_span + 2.0, right: wf - 2.0, bottom: hf - 2.0 },
-                    is_c2, "Bottom-Right", "Flick Trigger",
+                    D2D_RECT_F {
+                        left: wf - c_span + 2.0,
+                        top: 2.0,
+                        right: wf - 2.0,
+                        bottom: c_span - 2.0,
+                    },
+                    is_c1,
+                    "Top-Right",
+                    "Flick Trigger",
+                    D2D_RECT_F {
+                        left: wf - e_zone + 2.0,
+                        top: c_span + 4.0,
+                        right: wf - 2.0,
+                        bottom: hf - c_span - 4.0,
+                    },
+                    is_center,
+                    "Stash Right",
+                    "Default Edge",
+                    D2D_RECT_F {
+                        left: wf - c_span + 2.0,
+                        top: hf - c_span + 2.0,
+                        right: wf - 2.0,
+                        bottom: hf - 2.0,
+                    },
+                    is_c2,
+                    "Bottom-Right",
+                    "Flick Trigger",
                 )
             }
             ScreenEdge::Left => {
-                let is_c1 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::TopLeftDown | ChurnZoneId::TopLeftRight, .. }));
-                let is_center = matches!(active_target, Some(crate::trigger::DragDropTarget::Edge { edge: ScreenEdge::Left, .. }));
-                let is_c2 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::BottomLeftUp | ChurnZoneId::BottomLeftRight, .. }));
+                let is_c1 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::TopLeftDown | ChurnZoneId::TopLeftRight,
+                        ..
+                    })
+                );
+                let is_center = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Edge {
+                        edge: ScreenEdge::Left,
+                        ..
+                    })
+                );
+                let is_c2 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::BottomLeftUp | ChurnZoneId::BottomLeftRight,
+                        ..
+                    })
+                );
                 (
-                    D2D_RECT_F { left: 2.0, top: 2.0, right: c_span - 2.0, bottom: c_span - 2.0 },
-                    is_c1, "Top-Left", "Flick Trigger",
-                    D2D_RECT_F { left: 2.0, top: c_span + 4.0, right: e_zone - 2.0, bottom: hf - c_span - 4.0 },
-                    is_center, "Stash Left", "Default Edge",
-                    D2D_RECT_F { left: 2.0, top: hf - c_span + 2.0, right: c_span - 2.0, bottom: hf - 2.0 },
-                    is_c2, "Bottom-Left", "Flick Trigger",
+                    D2D_RECT_F {
+                        left: 2.0,
+                        top: 2.0,
+                        right: c_span - 2.0,
+                        bottom: c_span - 2.0,
+                    },
+                    is_c1,
+                    "Top-Left",
+                    "Flick Trigger",
+                    D2D_RECT_F {
+                        left: 2.0,
+                        top: c_span + 4.0,
+                        right: e_zone - 2.0,
+                        bottom: hf - c_span - 4.0,
+                    },
+                    is_center,
+                    "Stash Left",
+                    "Default Edge",
+                    D2D_RECT_F {
+                        left: 2.0,
+                        top: hf - c_span + 2.0,
+                        right: c_span - 2.0,
+                        bottom: hf - 2.0,
+                    },
+                    is_c2,
+                    "Bottom-Left",
+                    "Flick Trigger",
                 )
             }
             ScreenEdge::Top => {
-                let is_c1 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::TopLeftDown | ChurnZoneId::TopLeftRight, .. }));
-                let is_center = matches!(active_target, Some(crate::trigger::DragDropTarget::Edge { edge: ScreenEdge::Top, .. }));
-                let is_c2 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::TopRightDown | ChurnZoneId::TopRightLeft, .. }));
+                let is_c1 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::TopLeftDown | ChurnZoneId::TopLeftRight,
+                        ..
+                    })
+                );
+                let is_center = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Edge {
+                        edge: ScreenEdge::Top,
+                        ..
+                    })
+                );
+                let is_c2 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::TopRightDown | ChurnZoneId::TopRightLeft,
+                        ..
+                    })
+                );
                 (
-                    D2D_RECT_F { left: 2.0, top: 2.0, right: c_span - 2.0, bottom: c_span - 2.0 },
-                    is_c1, "Top-Left", "Flick Trigger",
-                    D2D_RECT_F { left: c_span + 4.0, top: 2.0, right: wf - c_span - 4.0, bottom: e_zone - 2.0 },
-                    is_center, "Stash Top", "Default Edge",
-                    D2D_RECT_F { left: wf - c_span + 2.0, top: 2.0, right: wf - 2.0, bottom: c_span - 2.0 },
-                    is_c2, "Top-Right", "Flick Trigger",
+                    D2D_RECT_F {
+                        left: 2.0,
+                        top: 2.0,
+                        right: c_span - 2.0,
+                        bottom: c_span - 2.0,
+                    },
+                    is_c1,
+                    "Top-Left",
+                    "Flick Trigger",
+                    D2D_RECT_F {
+                        left: c_span + 4.0,
+                        top: 2.0,
+                        right: wf - c_span - 4.0,
+                        bottom: e_zone - 2.0,
+                    },
+                    is_center,
+                    "Stash Top",
+                    "Default Edge",
+                    D2D_RECT_F {
+                        left: wf - c_span + 2.0,
+                        top: 2.0,
+                        right: wf - 2.0,
+                        bottom: c_span - 2.0,
+                    },
+                    is_c2,
+                    "Top-Right",
+                    "Flick Trigger",
                 )
             }
             ScreenEdge::Bottom => {
-                let is_c1 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::BottomLeftUp | ChurnZoneId::BottomLeftRight, .. }));
-                let is_center = matches!(active_target, Some(crate::trigger::DragDropTarget::Edge { edge: ScreenEdge::Bottom, .. }));
-                let is_c2 = matches!(active_target, Some(crate::trigger::DragDropTarget::Corner { zone: ChurnZoneId::BottomRightUp | ChurnZoneId::BottomRightLeft, .. }));
+                let is_c1 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::BottomLeftUp | ChurnZoneId::BottomLeftRight,
+                        ..
+                    })
+                );
+                let is_center = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Edge {
+                        edge: ScreenEdge::Bottom,
+                        ..
+                    })
+                );
+                let is_c2 = matches!(
+                    active_target,
+                    Some(crate::trigger::DragDropTarget::Corner {
+                        zone: ChurnZoneId::BottomRightUp | ChurnZoneId::BottomRightLeft,
+                        ..
+                    })
+                );
                 (
-                    D2D_RECT_F { left: 2.0, top: hf - c_span + 2.0, right: c_span - 2.0, bottom: hf - 2.0 },
-                    is_c1, "Bottom-Left", "Flick Trigger",
-                    D2D_RECT_F { left: c_span + 4.0, top: hf - e_zone + 2.0, right: wf - c_span - 4.0, bottom: hf - 2.0 },
-                    is_center, "Stash Bottom", "Default Edge",
-                    D2D_RECT_F { left: wf - c_span + 2.0, top: hf - c_span + 2.0, right: wf - 2.0, bottom: hf - 2.0 },
-                    is_c2, "Bottom-Right", "Flick Trigger",
+                    D2D_RECT_F {
+                        left: 2.0,
+                        top: hf - c_span + 2.0,
+                        right: c_span - 2.0,
+                        bottom: hf - 2.0,
+                    },
+                    is_c1,
+                    "Bottom-Left",
+                    "Flick Trigger",
+                    D2D_RECT_F {
+                        left: c_span + 4.0,
+                        top: hf - e_zone + 2.0,
+                        right: wf - c_span - 4.0,
+                        bottom: hf - 2.0,
+                    },
+                    is_center,
+                    "Stash Bottom",
+                    "Default Edge",
+                    D2D_RECT_F {
+                        left: wf - c_span + 2.0,
+                        top: hf - c_span + 2.0,
+                        right: wf - 2.0,
+                        bottom: hf - 2.0,
+                    },
+                    is_c2,
+                    "Bottom-Right",
+                    "Flick Trigger",
                 )
             }
         };
@@ -1018,8 +1272,16 @@ impl D2DWindowSurface {
         ];
 
         for (r, is_active, title, sub) in zones {
-            let fill = if is_active { &active_fill } else { &inactive_fill };
-            let stroke = if is_active { &active_stroke } else { &inactive_stroke };
+            let fill = if is_active {
+                &active_fill
+            } else {
+                &inactive_fill
+            };
+            let stroke = if is_active {
+                &active_stroke
+            } else {
+                &inactive_stroke
+            };
             let stroke_w = if is_active { 2.5 } else { 1.0 };
             let rounded = D2D1_ROUNDED_RECT {
                 rect: r,
@@ -1028,7 +1290,8 @@ impl D2DWindowSurface {
             };
             unsafe {
                 self.d2d_context.FillRoundedRectangle(&rounded, fill);
-                self.d2d_context.DrawRoundedRectangle(&rounded, stroke, stroke_w, None);
+                self.d2d_context
+                    .DrawRoundedRectangle(&rounded, stroke, stroke_w, None);
             }
             if let Some(fmt_t) = &font_title {
                 let text_r = D2D_RECT_F {
@@ -1039,7 +1302,9 @@ impl D2DWindowSurface {
                 };
                 self.draw_text_utf8(title, text_r, fmt_t, &text_brush);
             }
-            if let Some(fmt_s) = &font_sub && (r.bottom - r.top) >= 50.0 {
+            if let Some(fmt_s) = &font_sub
+                && (r.bottom - r.top) >= 50.0
+            {
                 let sub_r = D2D_RECT_F {
                     left: r.left + 4.0,
                     top: r.top + 26.0,
@@ -1160,152 +1425,427 @@ impl D2DWindowSurface {
         let badge_stroke = self.create_brush(0.0, 0.82, 1.0, 0.50)?;
         let text_brush = self.create_brush(0.94, 0.97, 1.0, 0.95)?;
 
-        let (box_rect, poly, arrow_from, arrow_to, arrow_h1, arrow_h2, bezel_line, thresh_line) = match zone {
-            ChurnZoneId::TopRightDown => {
-                let bx = D2D_RECT_F { left: wf - c, top: 0.0, right: wf, bottom: c };
-                let p = [
-                    D2D_POINT_2F { x: wf, y: 0.0 },
-                    D2D_POINT_2F { x: wf, y: c + s },
-                    D2D_POINT_2F { x: wf - (c + inward_delta), y: c + s },
-                    D2D_POINT_2F { x: wf - c, y: c },
-                    D2D_POINT_2F { x: wf - c, y: 0.0 },
-                ];
-                let ax = wf - (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: ax, y: c * 0.5 };
-                let at = D2D_POINT_2F { x: ax, y: c + s - 6.0 };
-                let ah1 = D2D_POINT_2F { x: ax - 4.5, y: c + s - 14.0 };
-                let ah2 = D2D_POINT_2F { x: ax + 4.5, y: c + s - 14.0 };
-                let bz = (D2D_POINT_2F { x: wf - 1.5, y: 0.0 }, D2D_POINT_2F { x: wf - 1.5, y: c + s });
-                let th = (D2D_POINT_2F { x: wf, y: c + s }, D2D_POINT_2F { x: wf - (c + inward_delta), y: c + s });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::BottomRightUp => {
-                let bx = D2D_RECT_F { left: wf - c, top: hf - c, right: wf, bottom: hf };
-                let p = [
-                    D2D_POINT_2F { x: wf, y: hf },
-                    D2D_POINT_2F { x: wf, y: hf - (c + s) },
-                    D2D_POINT_2F { x: wf - (c + inward_delta), y: hf - (c + s) },
-                    D2D_POINT_2F { x: wf - c, y: hf - c },
-                    D2D_POINT_2F { x: wf - c, y: hf },
-                ];
-                let ax = wf - (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: ax, y: hf - c * 0.5 };
-                let at = D2D_POINT_2F { x: ax, y: hf - (c + s) + 6.0 };
-                let ah1 = D2D_POINT_2F { x: ax - 4.5, y: hf - (c + s) + 14.0 };
-                let ah2 = D2D_POINT_2F { x: ax + 4.5, y: hf - (c + s) + 14.0 };
-                let bz = (D2D_POINT_2F { x: wf - 1.5, y: hf }, D2D_POINT_2F { x: wf - 1.5, y: hf - (c + s) });
-                let th = (D2D_POINT_2F { x: wf, y: hf - (c + s) }, D2D_POINT_2F { x: wf - (c + inward_delta), y: hf - (c + s) });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::TopLeftDown => {
-                let bx = D2D_RECT_F { left: 0.0, top: 0.0, right: c, bottom: c };
-                let p = [
-                    D2D_POINT_2F { x: 0.0, y: 0.0 },
-                    D2D_POINT_2F { x: 0.0, y: c + s },
-                    D2D_POINT_2F { x: c + inward_delta, y: c + s },
-                    D2D_POINT_2F { x: c, y: c },
-                    D2D_POINT_2F { x: c, y: 0.0 },
-                ];
-                let ax = (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: ax, y: c * 0.5 };
-                let at = D2D_POINT_2F { x: ax, y: c + s - 6.0 };
-                let ah1 = D2D_POINT_2F { x: ax - 4.5, y: c + s - 14.0 };
-                let ah2 = D2D_POINT_2F { x: ax + 4.5, y: c + s - 14.0 };
-                let bz = (D2D_POINT_2F { x: 1.5, y: 0.0 }, D2D_POINT_2F { x: 1.5, y: c + s });
-                let th = (D2D_POINT_2F { x: 0.0, y: c + s }, D2D_POINT_2F { x: c + inward_delta, y: c + s });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::BottomLeftUp => {
-                let bx = D2D_RECT_F { left: 0.0, top: hf - c, right: c, bottom: hf };
-                let p = [
-                    D2D_POINT_2F { x: 0.0, y: hf },
-                    D2D_POINT_2F { x: 0.0, y: hf - (c + s) },
-                    D2D_POINT_2F { x: c + inward_delta, y: hf - (c + s) },
-                    D2D_POINT_2F { x: c, y: hf - c },
-                    D2D_POINT_2F { x: c, y: hf },
-                ];
-                let ax = (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: ax, y: hf - c * 0.5 };
-                let at = D2D_POINT_2F { x: ax, y: hf - (c + s) + 6.0 };
-                let ah1 = D2D_POINT_2F { x: ax - 4.5, y: hf - (c + s) + 14.0 };
-                let ah2 = D2D_POINT_2F { x: ax + 4.5, y: hf - (c + s) + 14.0 };
-                let bz = (D2D_POINT_2F { x: 1.5, y: hf }, D2D_POINT_2F { x: 1.5, y: hf - (c + s) });
-                let th = (D2D_POINT_2F { x: 0.0, y: hf - (c + s) }, D2D_POINT_2F { x: c + inward_delta, y: hf - (c + s) });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::TopLeftRight => {
-                let bx = D2D_RECT_F { left: 0.0, top: 0.0, right: c, bottom: c };
-                let p = [
-                    D2D_POINT_2F { x: 0.0, y: 0.0 },
-                    D2D_POINT_2F { x: c + s, y: 0.0 },
-                    D2D_POINT_2F { x: c + s, y: c + inward_delta },
-                    D2D_POINT_2F { x: c, y: c },
-                    D2D_POINT_2F { x: 0.0, y: c },
-                ];
-                let ay = (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: c * 0.5, y: ay };
-                let at = D2D_POINT_2F { x: c + s - 6.0, y: ay };
-                let ah1 = D2D_POINT_2F { x: c + s - 14.0, y: ay - 4.5 };
-                let ah2 = D2D_POINT_2F { x: c + s - 14.0, y: ay + 4.5 };
-                let bz = (D2D_POINT_2F { x: 0.0, y: 1.5 }, D2D_POINT_2F { x: c + s, y: 1.5 });
-                let th = (D2D_POINT_2F { x: c + s, y: 0.0 }, D2D_POINT_2F { x: c + s, y: c + inward_delta });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::TopRightLeft => {
-                let bx = D2D_RECT_F { left: wf - c, top: 0.0, right: wf, bottom: c };
-                let p = [
-                    D2D_POINT_2F { x: wf, y: 0.0 },
-                    D2D_POINT_2F { x: wf - (c + s), y: 0.0 },
-                    D2D_POINT_2F { x: wf - (c + s), y: c + inward_delta },
-                    D2D_POINT_2F { x: wf - c, y: c },
-                    D2D_POINT_2F { x: wf, y: c },
-                ];
-                let ay = (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: wf - c * 0.5, y: ay };
-                let at = D2D_POINT_2F { x: wf - (c + s) + 6.0, y: ay };
-                let ah1 = D2D_POINT_2F { x: wf - (c + s) + 14.0, y: ay - 4.5 };
-                let ah2 = D2D_POINT_2F { x: wf - (c + s) + 14.0, y: ay + 4.5 };
-                let bz = (D2D_POINT_2F { x: wf, y: 1.5 }, D2D_POINT_2F { x: wf - (c + s), y: 1.5 });
-                let th = (D2D_POINT_2F { x: wf - (c + s), y: 0.0 }, D2D_POINT_2F { x: wf - (c + s), y: c + inward_delta });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::BottomLeftRight => {
-                let bx = D2D_RECT_F { left: 0.0, top: hf - c, right: c, bottom: hf };
-                let p = [
-                    D2D_POINT_2F { x: 0.0, y: hf },
-                    D2D_POINT_2F { x: c + s, y: hf },
-                    D2D_POINT_2F { x: c + s, y: hf - (c + inward_delta) },
-                    D2D_POINT_2F { x: c, y: hf - c },
-                    D2D_POINT_2F { x: 0.0, y: hf - c },
-                ];
-                let ay = hf - (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: c * 0.5, y: ay };
-                let at = D2D_POINT_2F { x: c + s - 6.0, y: ay };
-                let ah1 = D2D_POINT_2F { x: c + s - 14.0, y: ay - 4.5 };
-                let ah2 = D2D_POINT_2F { x: c + s - 14.0, y: ay + 4.5 };
-                let bz = (D2D_POINT_2F { x: 0.0, y: hf - 1.5 }, D2D_POINT_2F { x: c + s, y: hf - 1.5 });
-                let th = (D2D_POINT_2F { x: c + s, y: hf }, D2D_POINT_2F { x: c + s, y: hf - (c + inward_delta) });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-            ChurnZoneId::BottomRightLeft => {
-                let bx = D2D_RECT_F { left: wf - c, top: hf - c, right: wf, bottom: hf };
-                let p = [
-                    D2D_POINT_2F { x: wf, y: hf },
-                    D2D_POINT_2F { x: wf - (c + s), y: hf },
-                    D2D_POINT_2F { x: wf - (c + s), y: hf - (c + inward_delta) },
-                    D2D_POINT_2F { x: wf - c, y: hf - c },
-                    D2D_POINT_2F { x: wf, y: hf - c },
-                ];
-                let ay = hf - (c * 0.5).clamp(8.0, 16.0);
-                let af = D2D_POINT_2F { x: wf - c * 0.5, y: ay };
-                let at = D2D_POINT_2F { x: wf - (c + s) + 6.0, y: ay };
-                let ah1 = D2D_POINT_2F { x: wf - (c + s) + 14.0, y: ay - 4.5 };
-                let ah2 = D2D_POINT_2F { x: wf - (c + s) + 14.0, y: ay + 4.5 };
-                let bz = (D2D_POINT_2F { x: wf, y: hf - 1.5 }, D2D_POINT_2F { x: wf - (c + s), y: hf - 1.5 });
-                let th = (D2D_POINT_2F { x: wf - (c + s), y: hf }, D2D_POINT_2F { x: wf - (c + s), y: hf - (c + inward_delta) });
-                (bx, p, af, at, ah1, ah2, bz, th)
-            }
-        };
+        let (box_rect, poly, arrow_from, arrow_to, arrow_h1, arrow_h2, bezel_line, thresh_line) =
+            match zone {
+                ChurnZoneId::TopRightDown => {
+                    let bx = D2D_RECT_F {
+                        left: wf - c,
+                        top: 0.0,
+                        right: wf,
+                        bottom: c,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: wf, y: 0.0 },
+                        D2D_POINT_2F { x: wf, y: c + s },
+                        D2D_POINT_2F {
+                            x: wf - (c + inward_delta),
+                            y: c + s,
+                        },
+                        D2D_POINT_2F { x: wf - c, y: c },
+                        D2D_POINT_2F { x: wf - c, y: 0.0 },
+                    ];
+                    let ax = wf - (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F { x: ax, y: c * 0.5 };
+                    let at = D2D_POINT_2F {
+                        x: ax,
+                        y: c + s - 6.0,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: ax - 4.5,
+                        y: c + s - 14.0,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: ax + 4.5,
+                        y: c + s - 14.0,
+                    };
+                    let bz = (
+                        D2D_POINT_2F {
+                            x: wf - 1.5,
+                            y: 0.0,
+                        },
+                        D2D_POINT_2F {
+                            x: wf - 1.5,
+                            y: c + s,
+                        },
+                    );
+                    let th = (
+                        D2D_POINT_2F { x: wf, y: c + s },
+                        D2D_POINT_2F {
+                            x: wf - (c + inward_delta),
+                            y: c + s,
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::BottomRightUp => {
+                    let bx = D2D_RECT_F {
+                        left: wf - c,
+                        top: hf - c,
+                        right: wf,
+                        bottom: hf,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: wf, y: hf },
+                        D2D_POINT_2F {
+                            x: wf,
+                            y: hf - (c + s),
+                        },
+                        D2D_POINT_2F {
+                            x: wf - (c + inward_delta),
+                            y: hf - (c + s),
+                        },
+                        D2D_POINT_2F {
+                            x: wf - c,
+                            y: hf - c,
+                        },
+                        D2D_POINT_2F { x: wf - c, y: hf },
+                    ];
+                    let ax = wf - (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F {
+                        x: ax,
+                        y: hf - c * 0.5,
+                    };
+                    let at = D2D_POINT_2F {
+                        x: ax,
+                        y: hf - (c + s) + 6.0,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: ax - 4.5,
+                        y: hf - (c + s) + 14.0,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: ax + 4.5,
+                        y: hf - (c + s) + 14.0,
+                    };
+                    let bz = (
+                        D2D_POINT_2F { x: wf - 1.5, y: hf },
+                        D2D_POINT_2F {
+                            x: wf - 1.5,
+                            y: hf - (c + s),
+                        },
+                    );
+                    let th = (
+                        D2D_POINT_2F {
+                            x: wf,
+                            y: hf - (c + s),
+                        },
+                        D2D_POINT_2F {
+                            x: wf - (c + inward_delta),
+                            y: hf - (c + s),
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::TopLeftDown => {
+                    let bx = D2D_RECT_F {
+                        left: 0.0,
+                        top: 0.0,
+                        right: c,
+                        bottom: c,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: 0.0, y: 0.0 },
+                        D2D_POINT_2F { x: 0.0, y: c + s },
+                        D2D_POINT_2F {
+                            x: c + inward_delta,
+                            y: c + s,
+                        },
+                        D2D_POINT_2F { x: c, y: c },
+                        D2D_POINT_2F { x: c, y: 0.0 },
+                    ];
+                    let ax = (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F { x: ax, y: c * 0.5 };
+                    let at = D2D_POINT_2F {
+                        x: ax,
+                        y: c + s - 6.0,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: ax - 4.5,
+                        y: c + s - 14.0,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: ax + 4.5,
+                        y: c + s - 14.0,
+                    };
+                    let bz = (
+                        D2D_POINT_2F { x: 1.5, y: 0.0 },
+                        D2D_POINT_2F { x: 1.5, y: c + s },
+                    );
+                    let th = (
+                        D2D_POINT_2F { x: 0.0, y: c + s },
+                        D2D_POINT_2F {
+                            x: c + inward_delta,
+                            y: c + s,
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::BottomLeftUp => {
+                    let bx = D2D_RECT_F {
+                        left: 0.0,
+                        top: hf - c,
+                        right: c,
+                        bottom: hf,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: 0.0, y: hf },
+                        D2D_POINT_2F {
+                            x: 0.0,
+                            y: hf - (c + s),
+                        },
+                        D2D_POINT_2F {
+                            x: c + inward_delta,
+                            y: hf - (c + s),
+                        },
+                        D2D_POINT_2F { x: c, y: hf - c },
+                        D2D_POINT_2F { x: c, y: hf },
+                    ];
+                    let ax = (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F {
+                        x: ax,
+                        y: hf - c * 0.5,
+                    };
+                    let at = D2D_POINT_2F {
+                        x: ax,
+                        y: hf - (c + s) + 6.0,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: ax - 4.5,
+                        y: hf - (c + s) + 14.0,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: ax + 4.5,
+                        y: hf - (c + s) + 14.0,
+                    };
+                    let bz = (
+                        D2D_POINT_2F { x: 1.5, y: hf },
+                        D2D_POINT_2F {
+                            x: 1.5,
+                            y: hf - (c + s),
+                        },
+                    );
+                    let th = (
+                        D2D_POINT_2F {
+                            x: 0.0,
+                            y: hf - (c + s),
+                        },
+                        D2D_POINT_2F {
+                            x: c + inward_delta,
+                            y: hf - (c + s),
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::TopLeftRight => {
+                    let bx = D2D_RECT_F {
+                        left: 0.0,
+                        top: 0.0,
+                        right: c,
+                        bottom: c,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: 0.0, y: 0.0 },
+                        D2D_POINT_2F { x: c + s, y: 0.0 },
+                        D2D_POINT_2F {
+                            x: c + s,
+                            y: c + inward_delta,
+                        },
+                        D2D_POINT_2F { x: c, y: c },
+                        D2D_POINT_2F { x: 0.0, y: c },
+                    ];
+                    let ay = (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F { x: c * 0.5, y: ay };
+                    let at = D2D_POINT_2F {
+                        x: c + s - 6.0,
+                        y: ay,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: c + s - 14.0,
+                        y: ay - 4.5,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: c + s - 14.0,
+                        y: ay + 4.5,
+                    };
+                    let bz = (
+                        D2D_POINT_2F { x: 0.0, y: 1.5 },
+                        D2D_POINT_2F { x: c + s, y: 1.5 },
+                    );
+                    let th = (
+                        D2D_POINT_2F { x: c + s, y: 0.0 },
+                        D2D_POINT_2F {
+                            x: c + s,
+                            y: c + inward_delta,
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::TopRightLeft => {
+                    let bx = D2D_RECT_F {
+                        left: wf - c,
+                        top: 0.0,
+                        right: wf,
+                        bottom: c,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: wf, y: 0.0 },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: 0.0,
+                        },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: c + inward_delta,
+                        },
+                        D2D_POINT_2F { x: wf - c, y: c },
+                        D2D_POINT_2F { x: wf, y: c },
+                    ];
+                    let ay = (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F {
+                        x: wf - c * 0.5,
+                        y: ay,
+                    };
+                    let at = D2D_POINT_2F {
+                        x: wf - (c + s) + 6.0,
+                        y: ay,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: wf - (c + s) + 14.0,
+                        y: ay - 4.5,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: wf - (c + s) + 14.0,
+                        y: ay + 4.5,
+                    };
+                    let bz = (
+                        D2D_POINT_2F { x: wf, y: 1.5 },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: 1.5,
+                        },
+                    );
+                    let th = (
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: 0.0,
+                        },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: c + inward_delta,
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::BottomLeftRight => {
+                    let bx = D2D_RECT_F {
+                        left: 0.0,
+                        top: hf - c,
+                        right: c,
+                        bottom: hf,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: 0.0, y: hf },
+                        D2D_POINT_2F { x: c + s, y: hf },
+                        D2D_POINT_2F {
+                            x: c + s,
+                            y: hf - (c + inward_delta),
+                        },
+                        D2D_POINT_2F { x: c, y: hf - c },
+                        D2D_POINT_2F { x: 0.0, y: hf - c },
+                    ];
+                    let ay = hf - (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F { x: c * 0.5, y: ay };
+                    let at = D2D_POINT_2F {
+                        x: c + s - 6.0,
+                        y: ay,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: c + s - 14.0,
+                        y: ay - 4.5,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: c + s - 14.0,
+                        y: ay + 4.5,
+                    };
+                    let bz = (
+                        D2D_POINT_2F {
+                            x: 0.0,
+                            y: hf - 1.5,
+                        },
+                        D2D_POINT_2F {
+                            x: c + s,
+                            y: hf - 1.5,
+                        },
+                    );
+                    let th = (
+                        D2D_POINT_2F { x: c + s, y: hf },
+                        D2D_POINT_2F {
+                            x: c + s,
+                            y: hf - (c + inward_delta),
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+                ChurnZoneId::BottomRightLeft => {
+                    let bx = D2D_RECT_F {
+                        left: wf - c,
+                        top: hf - c,
+                        right: wf,
+                        bottom: hf,
+                    };
+                    let p = [
+                        D2D_POINT_2F { x: wf, y: hf },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: hf,
+                        },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: hf - (c + inward_delta),
+                        },
+                        D2D_POINT_2F {
+                            x: wf - c,
+                            y: hf - c,
+                        },
+                        D2D_POINT_2F { x: wf, y: hf - c },
+                    ];
+                    let ay = hf - (c * 0.5).clamp(8.0, 16.0);
+                    let af = D2D_POINT_2F {
+                        x: wf - c * 0.5,
+                        y: ay,
+                    };
+                    let at = D2D_POINT_2F {
+                        x: wf - (c + s) + 6.0,
+                        y: ay,
+                    };
+                    let ah1 = D2D_POINT_2F {
+                        x: wf - (c + s) + 14.0,
+                        y: ay - 4.5,
+                    };
+                    let ah2 = D2D_POINT_2F {
+                        x: wf - (c + s) + 14.0,
+                        y: ay + 4.5,
+                    };
+                    let bz = (
+                        D2D_POINT_2F { x: wf, y: hf - 1.5 },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: hf - 1.5,
+                        },
+                    );
+                    let th = (
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: hf,
+                        },
+                        D2D_POINT_2F {
+                            x: wf - (c + s),
+                            y: hf - (c + inward_delta),
+                        },
+                    );
+                    (bx, p, af, at, ah1, ah2, bz, th)
+                }
+            };
 
         // 1. Draw wedge geometry
         let factory = unsafe { self.d2d_context.GetFactory()? };
@@ -1317,30 +1857,37 @@ impl D2DWindowSurface {
             sink.EndFigure(D2D1_FIGURE_END_CLOSED);
             sink.Close()?;
             self.d2d_context.FillGeometry(&path, &wedge_fill, None);
-            self.d2d_context.DrawGeometry(&path, &wedge_stroke, 1.5, None);
+            self.d2d_context
+                .DrawGeometry(&path, &wedge_stroke, 1.5, None);
         }
 
         // 2. Draw slide completion threshold line
         unsafe {
-            self.d2d_context.DrawLine(thresh_line.0, thresh_line.1, &threshold_brush, 2.0, None);
+            self.d2d_context
+                .DrawLine(thresh_line.0, thresh_line.1, &threshold_brush, 2.0, None);
         }
 
         // 3. Draw physical bezel guide line
         unsafe {
-            self.d2d_context.DrawLine(bezel_line.0, bezel_line.1, &bezel_brush, 3.0, None);
+            self.d2d_context
+                .DrawLine(bezel_line.0, bezel_line.1, &bezel_brush, 3.0, None);
         }
 
         // 4. Draw corner hit box
         unsafe {
             self.d2d_context.FillRectangle(&box_rect, &box_fill);
-            self.d2d_context.DrawRectangle(&box_rect, &box_stroke, 1.8, None);
+            self.d2d_context
+                .DrawRectangle(&box_rect, &box_stroke, 1.8, None);
         }
 
         // 5. Draw slide arrow
         unsafe {
-            self.d2d_context.DrawLine(arrow_from, arrow_to, &arrow_brush, 2.4, None);
-            self.d2d_context.DrawLine(arrow_to, arrow_h1, &arrow_brush, 2.4, None);
-            self.d2d_context.DrawLine(arrow_to, arrow_h2, &arrow_brush, 2.4, None);
+            self.d2d_context
+                .DrawLine(arrow_from, arrow_to, &arrow_brush, 2.4, None);
+            self.d2d_context
+                .DrawLine(arrow_to, arrow_h1, &arrow_brush, 2.4, None);
+            self.d2d_context
+                .DrawLine(arrow_to, arrow_h2, &arrow_brush, 2.4, None);
         }
 
         // 6. Draw clean DirectWrite HUD badges
@@ -1352,13 +1899,23 @@ impl D2DWindowSurface {
             // Angle badge placed at the inward slope
             let (ang_x, ang_y) = match zone {
                 ChurnZoneId::TopRightDown => (wf - c - inward_delta * 0.5 - 35.0, c + s * 0.4),
-                ChurnZoneId::BottomRightUp => (wf - c - inward_delta * 0.5 - 35.0, hf - (c + s * 0.4) - 10.0),
+                ChurnZoneId::BottomRightUp => (
+                    wf - c - inward_delta * 0.5 - 35.0,
+                    hf - (c + s * 0.4) - 10.0,
+                ),
                 ChurnZoneId::TopLeftDown => (c + inward_delta * 0.5 - 35.0, c + s * 0.4),
-                ChurnZoneId::BottomLeftUp => (c + inward_delta * 0.5 - 35.0, hf - (c + s * 0.4) - 10.0),
+                ChurnZoneId::BottomLeftUp => {
+                    (c + inward_delta * 0.5 - 35.0, hf - (c + s * 0.4) - 10.0)
+                }
                 ChurnZoneId::TopLeftRight => (c + s * 0.4 - 35.0, c + inward_delta * 0.5),
                 ChurnZoneId::TopRightLeft => (wf - (c + s * 0.4) - 35.0, c + inward_delta * 0.5),
-                ChurnZoneId::BottomLeftRight => (c + s * 0.4 - 35.0, hf - (c + inward_delta * 0.5) - 10.0),
-                ChurnZoneId::BottomRightLeft => (wf - (c + s * 0.4) - 35.0, hf - (c + inward_delta * 0.5) - 10.0),
+                ChurnZoneId::BottomLeftRight => {
+                    (c + s * 0.4 - 35.0, hf - (c + inward_delta * 0.5) - 10.0)
+                }
+                ChurnZoneId::BottomRightLeft => (
+                    wf - (c + s * 0.4) - 35.0,
+                    hf - (c + inward_delta * 0.5) - 10.0,
+                ),
             };
             let ang_rect = D2D_RECT_F {
                 left: ang_x.max(4.0),
@@ -1366,17 +1923,28 @@ impl D2DWindowSurface {
                 right: (ang_x + 76.0).min(wf - 4.0),
                 bottom: (ang_y + 18.0).min(hf - 4.0),
             };
-            let ang_rr = D2D1_ROUNDED_RECT { rect: ang_rect, radiusX: 3.0, radiusY: 3.0 };
+            let ang_rr = D2D1_ROUNDED_RECT {
+                rect: ang_rect,
+                radiusX: 3.0,
+                radiusY: 3.0,
+            };
             unsafe {
                 self.d2d_context.FillRoundedRectangle(&ang_rr, &badge_bg);
-                self.d2d_context.DrawRoundedRectangle(&ang_rr, &badge_stroke, 1.0, None);
+                self.d2d_context
+                    .DrawRoundedRectangle(&ang_rr, &badge_stroke, 1.0, None);
             }
             self.draw_text_utf8(&angle_text, ang_rect, &fmt, &text_brush);
 
             // Slide distance badge placed near the threshold line
             let (sld_x, sld_y) = match zone {
-                ChurnZoneId::TopRightDown => (wf - (c + inward_delta).min(wf * 0.8) - 10.0, (c + s + 3.0).min(hf - 20.0)),
-                ChurnZoneId::BottomRightUp => (wf - (c + inward_delta).min(wf * 0.8) - 10.0, (hf - (c + s) - 20.0).max(4.0)),
+                ChurnZoneId::TopRightDown => (
+                    wf - (c + inward_delta).min(wf * 0.8) - 10.0,
+                    (c + s + 3.0).min(hf - 20.0),
+                ),
+                ChurnZoneId::BottomRightUp => (
+                    wf - (c + inward_delta).min(wf * 0.8) - 10.0,
+                    (hf - (c + s) - 20.0).max(4.0),
+                ),
                 ChurnZoneId::TopLeftDown => (4.0, (c + s + 3.0).min(hf - 20.0)),
                 ChurnZoneId::BottomLeftUp => (4.0, (hf - (c + s) - 20.0).max(4.0)),
                 ChurnZoneId::TopLeftRight => ((c + s + 3.0).min(wf - 75.0), 4.0),
@@ -1390,19 +1958,30 @@ impl D2DWindowSurface {
                 right: (sld_x + 72.0).min(wf - 4.0),
                 bottom: (sld_y + 18.0).min(hf - 4.0),
             };
-            let sld_rr = D2D1_ROUNDED_RECT { rect: sld_rect, radiusX: 3.0, radiusY: 3.0 };
+            let sld_rr = D2D1_ROUNDED_RECT {
+                rect: sld_rect,
+                radiusX: 3.0,
+                radiusY: 3.0,
+            };
             unsafe {
                 self.d2d_context.FillRoundedRectangle(&sld_rr, &badge_bg);
-                self.d2d_context.DrawRoundedRectangle(&sld_rr, &badge_stroke, 1.0, None);
+                self.d2d_context
+                    .DrawRoundedRectangle(&sld_rr, &badge_stroke, 1.0, None);
             }
             self.draw_text_utf8(&slide_text, sld_rect, &fmt, &text_brush);
 
             // Corner hit badge
             let (crn_x, crn_y) = match zone {
-                ChurnZoneId::TopRightDown | ChurnZoneId::TopRightLeft => ((box_rect.left - 65.0).max(4.0), 3.0),
-                ChurnZoneId::BottomRightUp | ChurnZoneId::BottomRightLeft => ((box_rect.left - 65.0).max(4.0), hf - 20.0),
+                ChurnZoneId::TopRightDown | ChurnZoneId::TopRightLeft => {
+                    ((box_rect.left - 65.0).max(4.0), 3.0)
+                }
+                ChurnZoneId::BottomRightUp | ChurnZoneId::BottomRightLeft => {
+                    ((box_rect.left - 65.0).max(4.0), hf - 20.0)
+                }
                 ChurnZoneId::TopLeftDown | ChurnZoneId::TopLeftRight => (box_rect.right + 3.0, 3.0),
-                ChurnZoneId::BottomLeftUp | ChurnZoneId::BottomLeftRight => (box_rect.right + 3.0, hf - 20.0),
+                ChurnZoneId::BottomLeftUp | ChurnZoneId::BottomLeftRight => {
+                    (box_rect.right + 3.0, hf - 20.0)
+                }
             };
             let crn_rect = D2D_RECT_F {
                 left: crn_x.max(4.0),
@@ -1410,10 +1989,15 @@ impl D2DWindowSurface {
                 right: (crn_x + 70.0).min(wf - 4.0),
                 bottom: (crn_y + 18.0).min(hf - 4.0),
             };
-            let crn_rr = D2D1_ROUNDED_RECT { rect: crn_rect, radiusX: 3.0, radiusY: 3.0 };
+            let crn_rr = D2D1_ROUNDED_RECT {
+                rect: crn_rect,
+                radiusX: 3.0,
+                radiusY: 3.0,
+            };
             unsafe {
                 self.d2d_context.FillRoundedRectangle(&crn_rr, &badge_bg);
-                self.d2d_context.DrawRoundedRectangle(&crn_rr, &badge_stroke, 1.0, None);
+                self.d2d_context
+                    .DrawRoundedRectangle(&crn_rr, &badge_stroke, 1.0, None);
             }
             self.draw_text_utf8(&corner_text, crn_rect, &fmt, &text_brush);
         }

@@ -8,7 +8,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::{
     ASFW_ANY, AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetClassNameW, GetCursorPos,
     GetForegroundWindow, GetLastActivePopup, GetWindowRect, GetWindowThreadProcessId, IsWindow,
-    IsWindowVisible, SetForegroundWindow, ShowWindow, SwitchToThisWindow, SW_SHOW,
+    IsWindowVisible, SW_SHOW, SetForegroundWindow, ShowWindow, SwitchToThisWindow,
 };
 
 use crate::platform::WindowHandle;
@@ -272,9 +272,10 @@ impl DismissalController {
             return DismissalAction::None;
         }
 
-        let inside_with_margin = group_window_rects
-            .iter()
-            .any(|r| r.expanded(DEFAULT_HYSTERESIS_MARGIN_PX).contains_inclusive(cursor.0, cursor.1));
+        let inside_with_margin = group_window_rects.iter().any(|r| {
+            r.expanded(DEFAULT_HYSTERESIS_MARGIN_PX)
+                .contains_inclusive(cursor.0, cursor.1)
+        });
 
         if inside_with_margin {
             self.leave_countdown_started_at = None;
@@ -321,8 +322,7 @@ impl DismissalController {
         {
             return DismissalAction::None;
         }
-        if open_group_windows.contains(&new_foreground)
-            || overlay_windows.contains(&new_foreground)
+        if open_group_windows.contains(&new_foreground) || overlay_windows.contains(&new_foreground)
         {
             self.has_gained_focus = true;
             return DismissalAction::None;

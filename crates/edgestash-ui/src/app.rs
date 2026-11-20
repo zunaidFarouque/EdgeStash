@@ -183,13 +183,15 @@ impl EdgeStashApp {
         );
         if self.last_churn_preview_params != Some(current) {
             self.last_churn_preview_params = Some(current);
-            let _ = self.job_tx.send(WorkerJob::PreviewChurnVisual(IpcRequest::PreviewChurnVisual {
-                enabled: current.0,
-                zone: current.1,
-                corner_zone_px: current.2,
-                slide_distance_px: current.3,
-                diagonal_angle_deg: current.4,
-            }));
+            let _ = self.job_tx.send(WorkerJob::PreviewChurnVisual(
+                IpcRequest::PreviewChurnVisual {
+                    enabled: current.0,
+                    zone: current.1,
+                    corner_zone_px: current.2,
+                    slide_distance_px: current.3,
+                    diagonal_angle_deg: current.4,
+                },
+            ));
         }
     }
 
@@ -584,7 +586,11 @@ impl EdgeStashApp {
 
                 for tab in UiTab::ALL {
                     let selected = self.model.active_tab == tab;
-                    let fill = if selected { p.accent_soft } else { Color32::TRANSPARENT };
+                    let fill = if selected {
+                        p.accent_soft
+                    } else {
+                        Color32::TRANSPARENT
+                    };
                     let stroke = if selected {
                         Stroke::new(1.0_f32, p.accent)
                     } else {
@@ -593,7 +599,10 @@ impl EdgeStashApp {
                     let text_color = if selected { p.accent } else { p.text_primary };
 
                     let btn = egui::Button::new(
-                        egui::RichText::new(tab.title()).size(13.5).strong().color(text_color),
+                        egui::RichText::new(tab.title())
+                            .size(13.5)
+                            .strong()
+                            .color(text_color),
                     )
                     .min_size(Vec2::new(ui.available_width(), 36.0))
                     .fill(fill)
@@ -626,11 +635,7 @@ impl EdgeStashApp {
 
     fn render_content(&mut self, ctx: &egui::Context, p: &Palette) {
         egui::CentralPanel::default()
-            .frame(
-                Frame::NONE
-                    .fill(p.bg_app)
-                    .inner_margin(Margin::same(18)),
-            )
+            .frame(Frame::NONE.fill(p.bg_app).inner_margin(Margin::same(18)))
             .show(ctx, |ui| {
                 let tab = self.model.active_tab;
                 ui.label(
@@ -670,14 +675,30 @@ impl EdgeStashApp {
         let is_connected = matches!(self.model.connection, DaemonConnection::Connected { .. });
 
         ui.horizontal_wrapped(|ui| {
-            metric_tile(ui, p, "Stashed Windows", &total_windows.to_string(), p.accent);
-            metric_tile(ui, p, "Edge Slots", &slots.len().to_string(), p.text_primary);
+            metric_tile(
+                ui,
+                p,
+                "Stashed Windows",
+                &total_windows.to_string(),
+                p.accent,
+            );
+            metric_tile(
+                ui,
+                p,
+                "Edge Slots",
+                &slots.len().to_string(),
+                p.text_primary,
+            );
             metric_tile(
                 ui,
                 p,
                 "Open Drawers",
                 &open_count.to_string(),
-                if open_count > 0 { p.success } else { p.text_secondary },
+                if open_count > 0 {
+                    p.success
+                } else {
+                    p.text_secondary
+                },
             );
             metric_tile(
                 ui,
@@ -777,7 +798,9 @@ impl EdgeStashApp {
                 ui,
                 p,
                 "Daemon Is Not Running",
-                Some("Start `edgestash-daemon.exe` from the header button (Windows will prompt UAC) to inspect or manage live stashed windows."),
+                Some(
+                    "Start `edgestash-daemon.exe` from the header button (Windows will prompt UAC) to inspect or manage live stashed windows.",
+                ),
                 |ui| {
                     ui.label(
                         egui::RichText::new(
@@ -796,7 +819,9 @@ impl EdgeStashApp {
                 ui,
                 p,
                 "No Windows Currently Stashed",
-                Some("Stash any window with your keyboard shortcut or by dragging it to a screen edge."),
+                Some(
+                    "Stash any window with your keyboard shortcut or by dragging it to a screen edge.",
+                ),
                 |ui| {
                     ui.label(
                         egui::RichText::new(format!(
@@ -825,7 +850,10 @@ impl EdgeStashApp {
         card(
             ui,
             p,
-            &format!("{edge_name} Edge  •  Slot #{}  ({mon_short})", slot.slot_index + 1),
+            &format!(
+                "{edge_name} Edge  •  Slot #{}  ({mon_short})",
+                slot.slot_index + 1
+            ),
             None,
             |ui| {
                 ui.horizontal_wrapped(|ui| {
@@ -885,7 +913,11 @@ impl EdgeStashApp {
                             });
                         }
 
-                        let toggle_lbl = if slot.is_open { "Close Drawer" } else { "Open Drawer" };
+                        let toggle_lbl = if slot.is_open {
+                            "Close Drawer"
+                        } else {
+                            "Open Drawer"
+                        };
                         if accent_button(ui, p, toggle_lbl).clicked() {
                             self.queue_action(IpcRequest::ToggleEdge {
                                 monitor_id: Some(slot.monitor_id.clone()),
@@ -979,10 +1011,8 @@ impl EdgeStashApp {
             self.running_apps = enumerate_running_app_candidates();
             self.running_apps_refreshed_at = Instant::now();
         }
-        let app_candidates = build_churn_app_candidates(
-            self.model.status_snapshot.as_ref(),
-            &self.running_apps,
-        );
+        let app_candidates =
+            build_churn_app_candidates(self.model.status_snapshot.as_ref(), &self.running_apps);
         let mut manual_refresh = false;
 
         let cfg = &mut self.model.draft_config;
@@ -1022,7 +1052,11 @@ impl EdgeStashApp {
 
                 for (mode, title, desc) in modes {
                     let selected = cfg.gesture_mode == mode;
-                    let fill = if selected { p.accent_soft } else { p.bg_card_alt };
+                    let fill = if selected {
+                        p.accent_soft
+                    } else {
+                        p.bg_card_alt
+                    };
                     let stroke = if selected {
                         Stroke::new(1.5_f32, p.accent)
                     } else {
@@ -1132,14 +1166,20 @@ impl EdgeStashApp {
                                 .color(p.text_secondary),
                         );
                         let current_zone_name = match self.preview_zone {
-                            Some(ChurnZoneId::TopRightDown) => "Right Edge — Top Corner → Down (Default)",
+                            Some(ChurnZoneId::TopRightDown) => {
+                                "Right Edge — Top Corner → Down (Default)"
+                            }
                             Some(ChurnZoneId::BottomRightUp) => "Right Edge — Bottom Corner → Up",
                             Some(ChurnZoneId::TopLeftDown) => "Left Edge — Top Corner → Down",
                             Some(ChurnZoneId::BottomLeftUp) => "Left Edge — Bottom Corner → Up",
                             Some(ChurnZoneId::TopLeftRight) => "Top Edge — Left Corner → Right",
                             Some(ChurnZoneId::TopRightLeft) => "Top Edge — Right Corner → Left",
-                            Some(ChurnZoneId::BottomLeftRight) => "Bottom Edge — Left Corner → Right",
-                            Some(ChurnZoneId::BottomRightLeft) => "Bottom Edge — Right Corner → Left",
+                            Some(ChurnZoneId::BottomLeftRight) => {
+                                "Bottom Edge — Left Corner → Right"
+                            }
+                            Some(ChurnZoneId::BottomRightLeft) => {
+                                "Bottom Edge — Right Corner → Left"
+                            }
                             None => "All Active Zones (Multi-Corner)",
                         };
                         egui::ComboBox::from_id_salt("churn_preview_zone_select")
@@ -1222,7 +1262,9 @@ impl EdgeStashApp {
             ui,
             p,
             "Area-Aware Edge Scrolling",
-            Some("Scroll anywhere along the thin screen edge trigger line to switch drawers (without aiming directly inside the pill)"),
+            Some(
+                "Scroll anywhere along the thin screen edge trigger line to switch drawers (without aiming directly inside the pill)",
+            ),
             |ui| {
                 toggle_row(
                     ui,
@@ -1319,7 +1361,9 @@ impl EdgeStashApp {
             ui,
             p,
             "Churn Zones (Corner-Slide Bindings)",
-            Some("Assign each corner-slide direction to your last-opened stashed window, a specific app, or disable it"),
+            Some(
+                "Assign each corner-slide direction to your last-opened stashed window, a specific app, or disable it",
+            ),
             |ui| {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
@@ -1475,7 +1519,11 @@ impl EdgeStashApp {
                     );
                     ui.add_space(4.0);
                     ui.horizontal_wrapped(|ui| {
-                        ui.label(egui::RichText::new("Drag Hotkey:").size(12.5).color(p.text_primary));
+                        ui.label(
+                            egui::RichText::new("Drag Hotkey:")
+                                .size(12.5)
+                                .color(p.text_primary),
+                        );
                         ui.selectable_value(
                             &mut cfg.drag_drop_modifier_key,
                             DragDropModifierKey::Shift,
@@ -1604,7 +1652,9 @@ impl EdgeStashApp {
             ui,
             p,
             "Edge Position Lock (Resize Only)",
-            Some("Keeps stashed windows docked to their screen edge instead of being dragged off their bezel"),
+            Some(
+                "Keeps stashed windows docked to their screen edge instead of being dragged off their bezel",
+            ),
             |ui| {
                 toggle_row(
                     ui,
@@ -1703,7 +1753,9 @@ impl EdgeStashApp {
             ui,
             p,
             "Window Attention & Flashing Alerts",
-            Some("Configure notifications when stashed messaging or background apps call for attention"),
+            Some(
+                "Configure notifications when stashed messaging or background apps call for attention",
+            ),
             |ui| {
                 toggle_row(
                     ui,
@@ -1872,7 +1924,11 @@ impl EdgeStashApp {
                         egui::pos2(rect.right() - 4.0, rect.top() + 10.0),
                         egui::pos2(rect.right(), rect.bottom() - 10.0),
                     );
-                    painter.rect_filled(shade, 2.0, Color32::from_rgba_unmultiplied(76, 194, 255, 115));
+                    painter.rect_filled(
+                        shade,
+                        2.0,
+                        Color32::from_rgba_unmultiplied(76, 194, 255, 115),
+                    );
                 }
 
                 // Sample edge-stashed drawer
@@ -1903,7 +1959,11 @@ impl EdgeStashApp {
                             egui::pos2(rect.right() - 13.0, rect.center().y),
                             Vec2::new(22.0, 62.0),
                         );
-                        painter.rect_filled(pill, 8.0, Color32::from_rgba_unmultiplied(18, 22, 32, 235));
+                        painter.rect_filled(
+                            pill,
+                            8.0,
+                            Color32::from_rgba_unmultiplied(18, 22, 32, 235),
+                        );
                         painter.rect_stroke(
                             pill,
                             8.0,
@@ -1981,14 +2041,14 @@ impl EdgeStashApp {
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
-                                        let rec_lbl =
-                                            if is_recording { "Cancel (Esc)" } else { "Record" };
+                                        let rec_lbl = if is_recording {
+                                            "Cancel (Esc)"
+                                        } else {
+                                            "Record"
+                                        };
                                         if ui.button(rec_lbl).clicked() {
-                                            self.model.capturing_hotkey = if is_recording {
-                                                None
-                                            } else {
-                                                Some(field)
-                                            };
+                                            self.model.capturing_hotkey =
+                                                if is_recording { None } else { Some(field) };
                                         }
 
                                         let edit = ui.add(
@@ -2048,7 +2108,10 @@ impl eframe::App for EdgeStashApp {
         // Auto-apply settings changes debounced by 250ms during active user interaction/dragging,
         // or immediately flush if window loses focus.
         let is_focused = ctx.input(|i| i.focused);
-        if self.model.capturing_hotkey.is_none() && self.model.is_dirty() && self.model.validate_draft() {
+        if self.model.capturing_hotkey.is_none()
+            && self.model.is_dirty()
+            && self.model.validate_draft()
+        {
             if !is_focused {
                 self.save_and_apply();
             } else {
@@ -2080,13 +2143,15 @@ impl Drop for EdgeStashApp {
             let client = PipeDaemonClient::new(DEFAULT_PIPE_NAME);
             let _ = client.send_request(&IpcRequest::ReloadConfig);
         }
-        let _ = self.job_tx.send(WorkerJob::Action(IpcRequest::PreviewChurnVisual {
-            enabled: false,
-            zone: None,
-            corner_zone_px: 0,
-            slide_distance_px: 0,
-            diagonal_angle_deg: 0,
-        }));
+        let _ = self
+            .job_tx
+            .send(WorkerJob::Action(IpcRequest::PreviewChurnVisual {
+                enabled: false,
+                zone: None,
+                corner_zone_px: 0,
+                slide_distance_px: 0,
+                diagonal_angle_deg: 0,
+            }));
     }
 }
 
@@ -2094,7 +2159,12 @@ fn summary_kv(ui: &mut egui::Ui, p: &Palette, key: &str, value: &str) {
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(key).size(11.5).color(p.text_secondary));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(egui::RichText::new(value).size(11.5).strong().color(p.text_primary));
+            ui.label(
+                egui::RichText::new(value)
+                    .size(11.5)
+                    .strong()
+                    .color(p.text_primary),
+            );
         });
     });
 }
@@ -2107,8 +2177,17 @@ fn metric_tile(ui: &mut egui::Ui, p: &Palette, label: &str, value: &str, value_c
         .inner_margin(Margin::symmetric(14, 10))
         .show(ui, |ui| {
             ui.set_min_width(140.0);
-            ui.label(egui::RichText::new(label).size(11.5).color(p.text_secondary));
-            ui.label(egui::RichText::new(value).size(18.0).strong().color(value_color));
+            ui.label(
+                egui::RichText::new(label)
+                    .size(11.5)
+                    .color(p.text_secondary),
+            );
+            ui.label(
+                egui::RichText::new(value)
+                    .size(18.0)
+                    .strong()
+                    .color(value_color),
+            );
         });
 }
 
@@ -2243,7 +2322,9 @@ fn enumerate_running_app_candidates() -> Vec<(String, String)> {
             if copied <= 0 {
                 return BOOL(1);
             }
-            let title = String::from_utf16_lossy(&buf[..copied as usize]).trim().to_string();
+            let title = String::from_utf16_lossy(&buf[..copied as usize])
+                .trim()
+                .to_string();
             if title.is_empty()
                 || matches!(
                     title.as_str(),
@@ -2299,12 +2380,12 @@ fn build_churn_app_candidates(
                 }
                 let key = matcher.to_ascii_lowercase();
                 if seen.insert(key) {
-                    let label =
-                        if win.title.is_empty() || matcher.eq_ignore_ascii_case(&win.title) {
-                            format!("[Stashed] {matcher}")
-                        } else {
-                            format!("[Stashed] {} ({matcher})", win.title)
-                        };
+                    let label = if win.title.is_empty() || matcher.eq_ignore_ascii_case(&win.title)
+                    {
+                        format!("[Stashed] {matcher}")
+                    } else {
+                        format!("[Stashed] {} ({matcher})", win.title)
+                    };
                     out.push((matcher, label));
                 }
             }

@@ -319,7 +319,10 @@ impl EdgeStashConfig {
             ));
         }
         let invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
-        if name.chars().any(|c| invalid_chars.contains(&c) || c.is_control()) {
+        if name
+            .chars()
+            .any(|c| invalid_chars.contains(&c) || c.is_control())
+        {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "Preset name contains invalid characters (\\ / : * ? \" < > |)",
@@ -420,7 +423,11 @@ impl HotkeySpec {
         };
         let mut parsed_key: Option<VirtualKey> = None;
 
-        for token in trimmed.split('+').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        for token in trimmed
+            .split('+')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
             let lower = token.to_ascii_lowercase();
             match lower.as_str() {
                 "ctrl" | "control" => spec.ctrl = true,

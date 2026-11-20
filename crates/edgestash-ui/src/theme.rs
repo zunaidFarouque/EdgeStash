@@ -160,7 +160,12 @@ pub fn card(
 ) {
     card_frame(p).show(ui, |ui| {
         ui.set_min_width(ui.available_width());
-        ui.label(egui::RichText::new(title).size(15.0).strong().color(p.text_primary));
+        ui.label(
+            egui::RichText::new(title)
+                .size(15.0)
+                .strong()
+                .color(p.text_primary),
+        );
         if let Some(sub) = subtitle {
             ui.label(egui::RichText::new(sub).size(12.0).color(p.text_secondary));
         }
@@ -193,7 +198,11 @@ pub fn toggle_row(
         ui.vertical(|ui| {
             ui.set_max_width((ui.available_width() - 62.0).max(120.0));
             ui.label(egui::RichText::new(title).size(13.5).color(p.text_primary));
-            ui.label(egui::RichText::new(description).size(11.5).color(p.text_secondary));
+            ui.label(
+                egui::RichText::new(description)
+                    .size(11.5)
+                    .color(p.text_secondary),
+            );
         });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let desired = Vec2::new(42.0, 22.0);

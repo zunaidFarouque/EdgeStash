@@ -165,16 +165,20 @@ fn config_file_load_or_create_and_vdesktop_guid_roundtrip() {
     let cfg_path = temp_dir.join("config.toml");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
-    let created = EdgeStashConfig::load_or_create_at(&cfg_path).expect("should create default config");
+    let created =
+        EdgeStashConfig::load_or_create_at(&cfg_path).expect("should create default config");
     assert_eq!(created, EdgeStashConfig::default());
     assert!(cfg_path.exists());
 
-    let loaded = EdgeStashConfig::load_or_create_at(&cfg_path).expect("should load existing config");
+    let loaded =
+        EdgeStashConfig::load_or_create_at(&cfg_path).expect("should load existing config");
     assert_eq!(loaded, created);
 
     let mut modified = loaded.clone();
     modified.gesture_mode = GestureMode::EdgeHover;
-    modified.save_to_at(&cfg_path).expect("save modified config");
+    modified
+        .save_to_at(&cfg_path)
+        .expect("save modified config");
     let reloaded = EdgeStashConfig::load_or_create_at(&cfg_path).expect("reload saved config");
     assert_eq!(reloaded.gesture_mode, GestureMode::EdgeHover);
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -199,7 +203,10 @@ fn config_defaults_and_clamping_cover_dim_fade_floating_pinned_and_area_aware_sc
     assert!(cfg.lock_stashed_position);
     assert!(!cfg.auto_hide_pill);
     for zone in ChurnZoneId::ALL {
-        assert_eq!(cfg.churn_zones.get(zone), &ChurnZoneAction::DefaultLastOpened);
+        assert_eq!(
+            cfg.churn_zones.get(zone),
+            &ChurnZoneAction::DefaultLastOpened
+        );
     }
 
     // Existing partial TOML without new fields preserves exact defaults cleanly

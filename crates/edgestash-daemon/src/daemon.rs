@@ -43,27 +43,28 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::Shell::{
-    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW, Shell_NotifyIconW,
+    NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW,
+    Shell_NotifyIconW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CHILDID_SELF, CallNextHookEx, ChangeWindowMessageFilterEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
-    DeregisterShellHookWindow, DestroyMenu, DestroyWindow, DispatchMessageW, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, FindWindowW,
-    GA_ROOT, GWL_EXSTYLE, GWLP_USERDATA, GetAncestor, GetCursorPos, GetMessageW, GetWindowLongPtrW,
-    GetWindowRect, HHOOK, HWND_NOTOPMOST, HWND_TOPMOST, IDC_ARROW, IDI_APPLICATION, IsZoomed,
-    KillTimer, LoadCursorW, LoadIconW, MF_CHECKED, MF_SEPARATOR, MF_STRING, MSG, MSGFLT_ALLOW, MSLLHOOKSTRUCT,
-    OBJID_WINDOW, PM_NOREMOVE, PeekMessageW, PostMessageW, PostQuitMessage, RegisterClassW,
-    RegisterShellHookWindow, RegisterWindowMessageW, SW_HIDE,
-    SW_RESTORE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_NOZORDER, SetForegroundWindow, SetTimer, SetWindowLongPtrW,
-    SetWindowPos, SetWindowsHookExW, ShowWindow, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_RETURNCMD,
-    TrackPopupMenu, TranslateMessage, UnhookWindowsHookEx, WH_MOUSE_LL, WINEVENT_OUTOFCONTEXT,
-    WINEVENT_SKIPOWNPROCESS, WM_APP, WM_DESTROY, WM_DISPLAYCHANGE, WM_ENDSESSION, WM_HOTKEY,
-    WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_NCCREATE,
-    WM_NCLBUTTONDOWN, WM_QUERYENDSESSION, WM_RBUTTONUP, WM_TIMER, WNDCLASSW,
-    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_NOREDIRECTIONBITMAP, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_POPUP, WindowFromPoint,
+    AppendMenuW, CHILDID_SELF, CallNextHookEx, ChangeWindowMessageFilterEx, CreatePopupMenu,
+    CreateWindowExW, DefWindowProcW, DeregisterShellHookWindow, DestroyMenu, DestroyWindow,
+    DispatchMessageW, EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MOVESIZEEND,
+    EVENT_SYSTEM_MOVESIZESTART, FindWindowW, GA_ROOT, GWL_EXSTYLE, GWLP_USERDATA, GetAncestor,
+    GetCursorPos, GetMessageW, GetWindowLongPtrW, GetWindowRect, HHOOK, HWND_NOTOPMOST,
+    HWND_TOPMOST, IDC_ARROW, IDI_APPLICATION, IsZoomed, KillTimer, LoadCursorW, LoadIconW,
+    MF_CHECKED, MF_SEPARATOR, MF_STRING, MSG, MSGFLT_ALLOW, MSLLHOOKSTRUCT, OBJID_WINDOW,
+    PM_NOREMOVE, PeekMessageW, PostMessageW, PostQuitMessage, RegisterClassW,
+    RegisterShellHookWindow, RegisterWindowMessageW, SW_HIDE, SW_RESTORE, SW_SHOWNOACTIVATE,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetForegroundWindow,
+    SetTimer, SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow, TPM_BOTTOMALIGN,
+    TPM_LEFTALIGN, TPM_RETURNCMD, TrackPopupMenu, TranslateMessage, UnhookWindowsHookEx,
+    WH_MOUSE_LL, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_APP, WM_DESTROY,
+    WM_DISPLAYCHANGE, WM_ENDSESSION, WM_HOTKEY, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP,
+    WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_NCCREATE, WM_NCLBUTTONDOWN, WM_QUERYENDSESSION, WM_RBUTTONUP,
+    WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_NOREDIRECTIONBITMAP,
+    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WindowFromPoint,
 };
 use windows::core::{PCWSTR, Result as WinResult, implement, w};
 
@@ -86,10 +87,9 @@ use crate::trigger::{
     AreaAwareScrollController, DirectedCharmsDetector, DragCaptureStateMachine, DragDropTarget,
     EdgeBumpStateMachine, EdgeHoverStateMachine, StripScrollDecision, allows_pill_click,
     allows_pill_hover, allows_strip_hover, area_scroll_shade_rect, compute_churn_preview_rect,
-    compute_dim_scrim_insert_after, compute_edge_band_rect_inset,
-    detect_near_edge_ext, edge_pill_rect_for_style,
-    hit_test_pill_slot_index, is_in_area_scroll_line, is_strip_input_transparent,
-    should_pill_be_visible, trigger_strip_rect,
+    compute_dim_scrim_insert_after, compute_edge_band_rect_inset, detect_near_edge_ext,
+    edge_pill_rect_for_style, hit_test_pill_slot_index, is_in_area_scroll_line,
+    is_strip_input_transparent, should_pill_be_visible, trigger_strip_rect,
 };
 
 const WM_MOUSELEAVE: u32 = 0x02A3;
@@ -199,8 +199,10 @@ static DRAG_WHEEL_HOOK: std::sync::atomic::AtomicIsize = std::sync::atomic::Atom
 static GLOBAL_MOUSE_HOOK: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
 static WM_SHELLHOOK_MSG: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static WM_TASKBAR_CREATED_MSG: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-static LAST_MINIMIZE_CLICK_HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
-static LAST_MINIMIZE_CLICK_TIME: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static LAST_MINIMIZE_CLICK_HWND: std::sync::atomic::AtomicIsize =
+    std::sync::atomic::AtomicIsize::new(0);
+static LAST_MINIMIZE_CLICK_TIME: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
 
 #[derive(Default)]
 struct LowLevelMouseSnapshot {
@@ -292,9 +294,7 @@ unsafe extern "system" fn global_mouse_hook_proc(
                         st.wheel_capture_zones
                             .iter()
                             .enumerate()
-                            .find(|(_, (_, _, rect))| {
-                                rect.contains_inclusive(info.pt.x, info.pt.y)
-                            })
+                            .find(|(_, (_, _, rect))| rect.contains_inclusive(info.pt.x, info.pt.y))
                             .map(|(idx, (_, edge, _))| (idx, *edge))
                     });
                     if let Some((idx, edge)) = captured {
@@ -341,7 +341,8 @@ unsafe extern "system" fn global_mouse_hook_proc(
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .map(|d| d.as_millis() as u64)
                                     .unwrap_or(0);
-                                LAST_MINIMIZE_CLICK_HWND.store(root_hwnd.0 as isize, Ordering::Release);
+                                LAST_MINIMIZE_CLICK_HWND
+                                    .store(root_hwnd.0 as isize, Ordering::Release);
                                 LAST_MINIMIZE_CLICK_TIME.store(now_ms, Ordering::Release);
                             }
                         }
@@ -357,7 +358,8 @@ fn install_global_mouse_hook() {
     if GLOBAL_MOUSE_HOOK.load(Ordering::Acquire) != 0 {
         return;
     }
-    if let Ok(hook) = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(global_mouse_hook_proc), None, 0) }
+    if let Ok(hook) =
+        unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(global_mouse_hook_proc), None, 0) }
         && !hook.is_invalid()
     {
         let prev = GLOBAL_MOUSE_HOOK.swap(hook.0 as isize, Ordering::AcqRel);
@@ -406,14 +408,15 @@ fn install_drag_wheel_hook() {
         return;
     }
     if let Ok(hook) = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(drag_wheel_hook_proc), None, 0) }
-        && !hook.is_invalid() {
-            let prev = DRAG_WHEEL_HOOK.swap(hook.0 as isize, Ordering::AcqRel);
-            if prev != 0 {
-                unsafe {
-                    let _ = UnhookWindowsHookEx(HHOOK(prev as *mut _));
-                }
+        && !hook.is_invalid()
+    {
+        let prev = DRAG_WHEEL_HOOK.swap(hook.0 as isize, Ordering::AcqRel);
+        if prev != 0 {
+            unsafe {
+                let _ = UnhookWindowsHookEx(HHOOK(prev as *mut _));
             }
         }
+    }
 }
 
 fn uninstall_drag_wheel_hook() {
@@ -626,7 +629,11 @@ fn install_safety_hooks(manifest_path: PathBuf) {
     unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> BOOL {
         if matches!(
             ctrl_type,
-            CTRL_C_EVENT | CTRL_BREAK_EVENT | CTRL_CLOSE_EVENT | CTRL_LOGOFF_EVENT | CTRL_SHUTDOWN_EVENT
+            CTRL_C_EVENT
+                | CTRL_BREAK_EVENT
+                | CTRL_CLOSE_EVENT
+                | CTRL_LOGOFF_EVENT
+                | CTRL_SHUTDOWN_EVENT
         ) {
             if let Some(path) = EMERGENCY_MANIFEST_PATH.get() {
                 let _ = emergency_restore_from_manifest(path);
@@ -634,12 +641,7 @@ fn install_safety_hooks(manifest_path: PathBuf) {
             let raw = GLOBAL_MSG_HWND.load(Ordering::Acquire);
             if raw != 0 {
                 unsafe {
-                    let _ = PostMessageW(
-                        HWND(raw as *mut _),
-                        WM_APP_IPC,
-                        WPARAM(0),
-                        LPARAM(0),
-                    );
+                    let _ = PostMessageW(HWND(raw as *mut _), WM_APP_IPC, WPARAM(0), LPARAM(0));
                 }
             }
         }
@@ -1106,12 +1108,14 @@ impl OverlayWindowState {
         let now = self.clock.now_ms();
         let (_alpha, still_running) = self.dim_fade.advance(now);
         self.render_dim_scrim_current();
-        if !still_running && !self.dim_fade.is_visible()
-            && let Some((hwnd, _, _)) = &self.dim_scrim {
-                unsafe {
-                    let _ = ShowWindow(*hwnd, SW_HIDE);
-                }
+        if !still_running
+            && !self.dim_fade.is_visible()
+            && let Some((hwnd, _, _)) = &self.dim_scrim
+        {
+            unsafe {
+                let _ = ShowWindow(*hwnd, SW_HIDE);
             }
+        }
         still_running
     }
 
@@ -1214,7 +1218,8 @@ impl OverlayWindowState {
                     unsafe {
                         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
                     }
-                    self.churn_previews.insert(zone, (hwnd, surface, target_rect));
+                    self.churn_previews
+                        .insert(zone, (hwnd, surface, target_rect));
                 } else {
                     unsafe {
                         let _ = DestroyWindow(hwnd);
@@ -1235,15 +1240,19 @@ impl OverlayWindowState {
         });
         let is_animating = anim_progress.is_some();
 
-        let desired = self.desired_pills.get(&key).cloned().unwrap_or(DesiredPillState {
-            slot_count: 0,
-            active_index: 0,
-            window_handles: Vec::new(),
-            slot_titles: Vec::new(),
-            is_open: false,
-            needs_attention: Vec::new(),
-            attention_count: 0,
-        });
+        let desired = self
+            .desired_pills
+            .get(&key)
+            .cloned()
+            .unwrap_or(DesiredPillState {
+                slot_count: 0,
+                active_index: 0,
+                window_handles: Vec::new(),
+                slot_titles: Vec::new(),
+                is_open: false,
+                needs_attention: Vec::new(),
+                attention_count: 0,
+            });
 
         let should_show = should_pill_be_visible(
             self.pill_style,
@@ -1256,12 +1265,13 @@ impl OverlayWindowState {
 
         if !should_show {
             if let Some(pill) = self.pills.get_mut(&key)
-                && pill.visible {
-                    unsafe {
-                        let _ = ShowWindow(pill.hwnd, SW_HIDE);
-                    }
-                    pill.visible = false;
+                && pill.visible
+            {
+                unsafe {
+                    let _ = ShowWindow(pill.hwnd, SW_HIDE);
                 }
+                pill.visible = false;
+            }
             return;
         }
 
@@ -1273,48 +1283,48 @@ impl OverlayWindowState {
 
         if !self.pills.contains_key(&key)
             && let Some(ctx) = &self.d2d
-                && let Ok(hwnd) =
-                    create_d2d_overlay_window(&self.overlay_class, target_rect, false, self.msg_hwnd)
-                {
-                    if let Ok(surface) = ctx.create_window_surface(
-                        hwnd,
-                        target_rect.width().max(1) as u32,
-                        target_rect.height().max(1) as u32,
-                    ) {
-                        let drop_target: IDropTarget = PillDropTarget {
-                            pill_hwnd_raw: hwnd.0 as isize,
-                            msg_hwnd_raw: self.msg_hwnd.0 as isize,
-                        }
-                        .into();
-                        let drag_drop_registered =
-                            unsafe { RegisterDragDrop(hwnd, &drop_target).is_ok() };
-                        self.pills.insert(
-                            key.clone(),
-                            PillMeta {
-                                hwnd,
-                                surface,
-                                rect: target_rect,
-                                slot_count: desired.slot_count,
-                                active_index: desired.active_index,
-                                window_handles: desired.window_handles.clone(),
-                                slot_titles: desired.slot_titles.clone(),
-                                is_open: desired.is_open,
-                                needs_attention: desired.needs_attention.clone(),
-                                attention_count: desired.attention_count,
-                                visible: false,
-                                drag_drop_registered,
-                            },
-                        );
-                    } else {
-                        unsafe {
-                            let _ = DestroyWindow(hwnd);
-                        }
-                    }
+            && let Ok(hwnd) =
+                create_d2d_overlay_window(&self.overlay_class, target_rect, false, self.msg_hwnd)
+        {
+            if let Ok(surface) = ctx.create_window_surface(
+                hwnd,
+                target_rect.width().max(1) as u32,
+                target_rect.height().max(1) as u32,
+            ) {
+                let drop_target: IDropTarget = PillDropTarget {
+                    pill_hwnd_raw: hwnd.0 as isize,
+                    msg_hwnd_raw: self.msg_hwnd.0 as isize,
                 }
+                .into();
+                let drag_drop_registered = unsafe { RegisterDragDrop(hwnd, &drop_target).is_ok() };
+                self.pills.insert(
+                    key.clone(),
+                    PillMeta {
+                        hwnd,
+                        surface,
+                        rect: target_rect,
+                        slot_count: desired.slot_count,
+                        active_index: desired.active_index,
+                        window_handles: desired.window_handles.clone(),
+                        slot_titles: desired.slot_titles.clone(),
+                        is_open: desired.is_open,
+                        needs_attention: desired.needs_attention.clone(),
+                        attention_count: desired.attention_count,
+                        visible: false,
+                        drag_drop_registered,
+                    },
+                );
+            } else {
+                unsafe {
+                    let _ = DestroyWindow(hwnd);
+                }
+            }
+        }
 
-        let close_anim_owned = self.close_anims.get(&key).and_then(|a| {
-            anim_progress.map(|p| (p, a.icon.clone()))
-        });
+        let close_anim_owned = self
+            .close_anims
+            .get(&key)
+            .and_then(|a| anim_progress.map(|p| (p, a.icon.clone())));
         let pill_style = self.pill_style;
         let visuals_owned: Vec<(Option<&IconPixels>, String)> = desired
             .window_handles
@@ -1322,11 +1332,7 @@ impl OverlayWindowState {
             .enumerate()
             .map(|(i, h)| {
                 let icon = self.icon_cache.get(h).filter(|px| px.width > 1);
-                let title = desired
-                    .slot_titles
-                    .get(i)
-                    .cloned()
-                    .unwrap_or_default();
+                let title = desired.slot_titles.get(i).cloned().unwrap_or_default();
                 (icon, title)
             })
             .collect();
@@ -1366,11 +1372,7 @@ impl OverlayWindowState {
                 progress: *p,
                 icon: icon.as_ref(),
             });
-            let alert_idx = desired
-                .needs_attention
-                .iter()
-                .position(|&a| a)
-                .unwrap_or(0);
+            let alert_idx = desired.needs_attention.iter().position(|&a| a).unwrap_or(0);
             let now_ms = self.clock.now_ms();
             let (render_visuals, render_slot_count, render_active_index) =
                 if !desired.is_open && desired.attention_count > 0 {
@@ -1403,7 +1405,8 @@ impl OverlayWindowState {
         let finished: Vec<(String, ScreenEdge)> = self
             .close_anims
             .iter()
-            .filter(|&(_k, anim)| now.saturating_sub(anim.started_at_ms) >= anim.duration_ms).map(|(k, _anim)| k.clone())
+            .filter(|&(_k, anim)| now.saturating_sub(anim.started_at_ms) >= anim.duration_ms)
+            .map(|(k, _anim)| k.clone())
             .collect();
 
         for k in finished {
@@ -1516,17 +1519,16 @@ impl VisualOverlayApi for SharedOverlayBridge {
                 attention_count,
             } => {
                 for hwnd in &window_handles {
-                    st.icon_cache
-                        .entry(*hwnd)
-                        .or_insert_with(|| IconPixels {
-                            width: 1,
-                            height: 1,
-                            bgra: vec![0, 0, 0, 0],
-                        });
+                    st.icon_cache.entry(*hwnd).or_insert_with(|| IconPixels {
+                        width: 1,
+                        height: 1,
+                        bgra: vec![0, 0, 0, 0],
+                    });
                     if st.icon_cache.get(hwnd).is_some_and(|i| i.width == 1)
-                        && let Some(real_icon) = extract_window_icon_bgra(hwnd.to_hwnd()) {
-                            st.icon_cache.insert(*hwnd, real_icon);
-                        }
+                        && let Some(real_icon) = extract_window_icon_bgra(hwnd.to_hwnd())
+                    {
+                        st.icon_cache.insert(*hwnd, real_icon);
+                    }
                 }
 
                 let key = (monitor_id.clone(), edge);
@@ -1559,10 +1561,7 @@ impl VisualOverlayApi for SharedOverlayBridge {
                 closed_hwnd,
                 closed_title: _,
             } => {
-                let icon = st
-                    .icon_cache
-                    .remove(&closed_hwnd)
-                    .filter(|i| i.width > 1);
+                let icon = st.icon_cache.remove(&closed_hwnd).filter(|i| i.width > 1);
                 let started_at_ms = st.clock.now_ms();
                 let key = (monitor_id.clone(), edge);
                 st.close_anims.insert(
@@ -1588,27 +1587,25 @@ impl VisualOverlayApi for SharedOverlayBridge {
             } => {
                 if st.drag_preview.is_none()
                     && let Some(ctx) = &st.d2d
-                        && let Ok(hwnd) = create_d2d_overlay_window(
-                            &st.overlay_class,
-                            band_rect,
-                            true,
-                            st.msg_hwnd,
-                        ) {
-                            if let Ok(surface) = ctx.create_window_surface(
-                                hwnd,
-                                band_rect.width().max(1) as u32,
-                                band_rect.height().max(1) as u32,
-                            ) {
-                                st.drag_preview = Some((hwnd, surface, band_rect));
-                            } else {
-                                unsafe {
-                                    let _ = DestroyWindow(hwnd);
-                                }
-                            }
+                    && let Ok(hwnd) =
+                        create_d2d_overlay_window(&st.overlay_class, band_rect, true, st.msg_hwnd)
+                {
+                    if let Ok(surface) = ctx.create_window_surface(
+                        hwnd,
+                        band_rect.width().max(1) as u32,
+                        band_rect.height().max(1) as u32,
+                    ) {
+                        st.drag_preview = Some((hwnd, surface, band_rect));
+                    } else {
+                        unsafe {
+                            let _ = DestroyWindow(hwnd);
                         }
+                    }
+                }
                 let d2d_ctx = st.d2d.clone();
                 if let (Some((hwnd, surface, rect)), Some(ctx)) = (&mut st.drag_preview, &d2d_ctx) {
-                    let size_changed = rect.width() != band_rect.width() || rect.height() != band_rect.height();
+                    let size_changed =
+                        rect.width() != band_rect.width() || rect.height() != band_rect.height();
                     *rect = band_rect;
                     unsafe {
                         let _ = SetWindowPos(
@@ -1653,30 +1650,33 @@ impl VisualOverlayApi for SharedOverlayBridge {
                 monitor_rect,
                 opacity_percent,
             } => {
-                if visible && st.dim_scrim.is_none()
+                if visible
+                    && st.dim_scrim.is_none()
                     && let Some(ctx) = &st.d2d
-                        && let Ok(hwnd) = create_d2d_overlay_window(
-                            &st.overlay_class,
-                            monitor_rect,
-                            st.drag_transparent,
-                            st.msg_hwnd,
-                        ) {
-                            if let Ok(surface) = ctx.create_window_surface(
-                                hwnd,
-                                monitor_rect.width().max(1) as u32,
-                                monitor_rect.height().max(1) as u32,
-                            ) {
-                                st.dim_scrim = Some((hwnd, surface, monitor_rect));
-                            } else {
-                                unsafe {
-                                    let _ = DestroyWindow(hwnd);
-                                }
-                            }
+                    && let Ok(hwnd) = create_d2d_overlay_window(
+                        &st.overlay_class,
+                        monitor_rect,
+                        st.drag_transparent,
+                        st.msg_hwnd,
+                    )
+                {
+                    if let Ok(surface) = ctx.create_window_surface(
+                        hwnd,
+                        monitor_rect.width().max(1) as u32,
+                        monitor_rect.height().max(1) as u32,
+                    ) {
+                        st.dim_scrim = Some((hwnd, surface, monitor_rect));
+                    } else {
+                        unsafe {
+                            let _ = DestroyWindow(hwnd);
                         }
-                if let Some((_, _, rect)) = &mut st.dim_scrim
-                    && visible {
-                        *rect = monitor_rect;
                     }
+                }
+                if let Some((_, _, rect)) = &mut st.dim_scrim
+                    && visible
+                {
+                    *rect = monitor_rect;
+                }
                 let target_alpha = if visible {
                     (opacity_percent.min(100) as f32) / 100.0
                 } else {
@@ -1737,38 +1737,39 @@ impl VisualOverlayApi for SharedOverlayBridge {
                 let key = (monitor_id, edge);
                 if !st.headers.contains_key(&key)
                     && let Some(ctx) = &st.d2d
-                        && let Ok(hwnd) = create_d2d_overlay_window(
-                            &st.overlay_class,
-                            header_rect,
-                            false,
-                            st.msg_hwnd,
-                        ) {
-                            if let Ok(surface) = ctx.create_window_surface(
+                    && let Ok(hwnd) = create_d2d_overlay_window(
+                        &st.overlay_class,
+                        header_rect,
+                        false,
+                        st.msg_hwnd,
+                    )
+                {
+                    if let Ok(surface) = ctx.create_window_surface(
+                        hwnd,
+                        header_rect.width().max(1) as u32,
+                        header_rect.height().max(1) as u32,
+                    ) {
+                        st.headers.insert(
+                            key.clone(),
+                            HeaderBarMeta {
                                 hwnd,
-                                header_rect.width().max(1) as u32,
-                                header_rect.height().max(1) as u32,
-                            ) {
-                                st.headers.insert(
-                                    key.clone(),
-                                    HeaderBarMeta {
-                                        hwnd,
-                                        surface,
-                                        rect: header_rect,
-                                        title: title.clone(),
-                                        slot_index,
-                                        slot_count,
-                                        dock_mode,
-                                        is_grouped,
-                                        hovered_button: None,
-                                        visible: false,
-                                    },
-                                );
-                            } else {
-                                unsafe {
-                                    let _ = DestroyWindow(hwnd);
-                                }
-                            }
+                                surface,
+                                rect: header_rect,
+                                title: title.clone(),
+                                slot_index,
+                                slot_count,
+                                dock_mode,
+                                is_grouped,
+                                hovered_button: None,
+                                visible: false,
+                            },
+                        );
+                    } else {
+                        unsafe {
+                            let _ = DestroyWindow(hwnd);
                         }
+                    }
+                }
                 if let Some(h) = st.headers.get_mut(&key) {
                     h.rect = header_rect;
                     h.title = title;
@@ -1905,7 +1906,8 @@ fn hit_test_header_button(rect: Rect, lparam: LPARAM) -> Option<HeaderButtonKind
 }
 
 struct DaemonController {
-    engine: EdgeStashEngine<Win32WindowSystem, Win32VirtualDesktop, Win32AppBar, SharedOverlayBridge>,
+    engine:
+        EdgeStashEngine<Win32WindowSystem, Win32VirtualDesktop, Win32AppBar, SharedOverlayBridge>,
     overlays: Rc<RefCell<OverlayWindowState>>,
     clock: SystemClock,
     msg_hwnd: HWND,
@@ -2043,18 +2045,18 @@ impl DaemonController {
                 for edge in ScreenEdge::ALL {
                     let is_open = self.engine.is_edge_open(&mon.id, edge);
                     let has_slots = self.engine.has_slots_on_edge(&mon.id, edge);
-                    let active = self
-                        .area_scrolls
-                        .get(&(mon.id.clone(), edge))
-                        .is_some_and(|ctrl| {
-                            ctrl.should_strip_capture_pointer(
-                                cfg.area_aware_edge_scroll,
-                                cfg.area_aware_edge_scroll_mode,
-                                cfg.scroll_trigger_line_only_when_open,
-                                is_open,
-                                has_slots,
-                            )
-                        });
+                    let active =
+                        self.area_scrolls
+                            .get(&(mon.id.clone(), edge))
+                            .is_some_and(|ctrl| {
+                                ctrl.should_strip_capture_pointer(
+                                    cfg.area_aware_edge_scroll,
+                                    cfg.area_aware_edge_scroll_mode,
+                                    cfg.scroll_trigger_line_only_when_open,
+                                    is_open,
+                                    has_slots,
+                                )
+                            });
                     if active {
                         wheel_capture_zones.push((
                             mon.id.clone(),
@@ -2066,7 +2068,10 @@ impl DaemonController {
             }
         }
 
-        let active_charms_or_hover = self.charms.values().any(DirectedCharmsDetector::is_any_armed)
+        let active_charms_or_hover = self
+            .charms
+            .values()
+            .any(DirectedCharmsDetector::is_any_armed)
             || self.bumps.values().any(EdgeBumpStateMachine::is_armed)
             || self.active_hover.is_some();
         let should_track_bezel_moves = self.edge_triggers_enabled
@@ -2145,8 +2150,12 @@ impl DaemonController {
             }
         }
         if !self.engine.has_any_open_slot() {
-            self.charms.values_mut().for_each(DirectedCharmsDetector::reset);
-            self.bumps.values_mut().for_each(EdgeBumpStateMachine::reset);
+            self.charms
+                .values_mut()
+                .for_each(DirectedCharmsDetector::reset);
+            self.bumps
+                .values_mut()
+                .for_each(EdgeBumpStateMachine::reset);
         }
         self.last_opened_via_edge = None;
         self.sync_area_scroll_shades(has_cursor.then_some(cur_pt));
@@ -2221,9 +2230,11 @@ impl DaemonController {
         };
         if allow_pill
             && let Some(pill) = ov.pills.get(&(mon_id.to_string(), edge))
-                && pill.visible && pill.rect.contains_inclusive(pt.0, pt.1) {
-                    return true;
-                }
+            && pill.visible
+            && pill.rect.contains_inclusive(pt.0, pt.1)
+        {
+            return true;
+        }
         if allow_strip {
             let strip_rect = trigger_strip_rect(mon, edge, 1);
             if strip_rect.contains_inclusive(pt.0, pt.1) {
@@ -2248,9 +2259,10 @@ impl DaemonController {
         let now = self.clock.now_ms();
         if let Some((prev_mon, prev_edge, _, _)) = &self.active_hover
             && (prev_mon != &mon_id || *prev_edge != edge)
-                && let Some(prev) = self.hovers.get_mut(&(prev_mon.clone(), *prev_edge)) {
-                    prev.reset();
-                }
+            && let Some(prev) = self.hovers.get_mut(&(prev_mon.clone(), *prev_edge))
+        {
+            prev.reset();
+        }
         self.active_hover = Some((mon_id.clone(), edge, from_pill, from_drag));
         let hover = self
             .hovers
@@ -2394,9 +2406,10 @@ impl DaemonController {
                         continue;
                     }
                     let key = (mon.id.clone(), edge);
-                    let bump = self.bumps.entry(key).or_insert_with(|| {
-                        EdgeBumpStateMachine::new(cfg.edge_bump_dwell_ms)
-                    });
+                    let bump = self
+                        .bumps
+                        .entry(key)
+                        .or_insert_with(|| EdgeBumpStateMachine::new(cfg.edge_bump_dwell_ms));
                     bump.dwell_ms = cfg.edge_bump_dwell_ms;
                     if bump.update(mon, edge, (pt.x, pt.y), now)
                         && self.engine.on_edge_trigger(&mon.id, edge)
@@ -2408,7 +2421,10 @@ impl DaemonController {
                 }
             }
             let any_armed = self.bumps.values().any(EdgeBumpStateMachine::is_armed)
-                || self.charms.values().any(DirectedCharmsDetector::is_any_armed);
+                || self
+                    .charms
+                    .values()
+                    .any(DirectedCharmsDetector::is_any_armed);
             unsafe {
                 if any_armed {
                     let _ = SetTimer(self.msg_hwnd, TIMER_CHARMS_POLL, 16, None);
@@ -2417,7 +2433,10 @@ impl DaemonController {
                 }
             }
         } else if cfg.gesture_mode == GestureMode::CornerSlide {
-            let any_armed = self.charms.values().any(DirectedCharmsDetector::is_any_armed);
+            let any_armed = self
+                .charms
+                .values()
+                .any(DirectedCharmsDetector::is_any_armed);
             unsafe {
                 if any_armed {
                     let _ = SetTimer(self.msg_hwnd, TIMER_CHARMS_POLL, 16, None);
@@ -2459,7 +2478,13 @@ impl DaemonController {
         }
     }
 
-    fn handle_edge_wheel_for(&mut self, mon_id: &str, edge: ScreenEdge, pt: POINT, delta: i16) -> bool {
+    fn handle_edge_wheel_for(
+        &mut self,
+        mon_id: &str,
+        edge: ScreenEdge,
+        pt: POINT,
+        delta: i16,
+    ) -> bool {
         let cfg = self.engine.config().clone();
         let is_open = self.engine.is_edge_open(mon_id, edge);
         let slot_count = self.overlays.borrow().slot_count_for(mon_id, edge);
@@ -2540,7 +2565,12 @@ impl DaemonController {
         }
     }
 
-    fn handle_strip_mouse_wheel(&mut self, strip_hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> bool {
+    fn handle_strip_mouse_wheel(
+        &mut self,
+        strip_hwnd: HWND,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> bool {
         let Some((mon_id, edge)) = self.overlays.borrow().find_strip_by_hwnd(strip_hwnd) else {
             return false;
         };
@@ -2610,7 +2640,9 @@ impl DaemonController {
             let _ = self
                 .engine
                 .select_and_open_slot(Some(&mon_id), edge, target_idx, true);
-        } else if let Some(idx) = hit_test_pill_slot_index(rect, edge, style, slot_count, dpi, (cx, cy)) {
+        } else if let Some(idx) =
+            hit_test_pill_slot_index(rect, edge, style, slot_count, dpi, (cx, cy))
+        {
             let _ = self
                 .engine
                 .select_and_open_slot(Some(&mon_id), edge, idx, true);
@@ -2641,10 +2673,11 @@ impl DaemonController {
             return;
         };
         if let Some(h) = ov.headers.get_mut(&key)
-            && h.hovered_button.is_some() {
-                h.hovered_button = None;
-                OverlayWindowState::render_header_meta(h);
-            }
+            && h.hovered_button.is_some()
+        {
+            h.hovered_button = None;
+            OverlayWindowState::render_header_meta(h);
+        }
     }
 
     fn handle_header_lbutton_up(&mut self, header_hwnd: HWND, lparam: LPARAM) {
@@ -2737,21 +2770,22 @@ impl DaemonController {
             uninstall_drag_wheel_hook();
         }
         if let Some((mon_id, edge)) = left_key
-            && !self.engine.is_edge_open(&mon_id, edge) {
-                if let Some(h) = self.hovers.get_mut(&(mon_id.clone(), edge)) {
-                    h.reset();
-                }
-                if self
-                    .active_hover
-                    .as_ref()
-                    .is_some_and(|(m, e, _, _)| m == &mon_id && *e == edge)
-                {
-                    self.active_hover = None;
-                    unsafe {
-                        let _ = KillTimer(self.msg_hwnd, TIMER_EDGE_HOVER);
-                    }
+            && !self.engine.is_edge_open(&mon_id, edge)
+        {
+            if let Some(h) = self.hovers.get_mut(&(mon_id.clone(), edge)) {
+                h.reset();
+            }
+            if self
+                .active_hover
+                .as_ref()
+                .is_some_and(|(m, e, _, _)| m == &mon_id && *e == edge)
+            {
+                self.active_hover = None;
+                unsafe {
+                    let _ = KillTimer(self.msg_hwnd, TIMER_EDGE_HOVER);
                 }
             }
+        }
         self.update_dismiss_timer();
     }
 
@@ -2920,7 +2954,8 @@ impl DaemonController {
 
     fn tick_charms_timer(&mut self) {
         let cfg = self.engine.config().clone();
-        if cfg.gesture_mode != GestureMode::CornerSlide && cfg.gesture_mode != GestureMode::EdgeBump {
+        if cfg.gesture_mode != GestureMode::CornerSlide && cfg.gesture_mode != GestureMode::EdgeBump
+        {
             self.charms.clear();
             self.bumps.clear();
             unsafe {
@@ -3051,9 +3086,9 @@ impl DaemonController {
 
                 match cmd.0 as u32 {
                     HEADER_CMD_PIN_FLOATING => {
-                        let _ = self
-                            .engine
-                            .set_dock_mode(Some(mon_id), edge, DockMode::FloatingPinned);
+                        let _ =
+                            self.engine
+                                .set_dock_mode(Some(mon_id), edge, DockMode::FloatingPinned);
                     }
                     HEADER_CMD_PIN_DOCK => {
                         let _ = self.engine.set_dock_mode(
@@ -3063,9 +3098,11 @@ impl DaemonController {
                         );
                     }
                     HEADER_CMD_UNPIN => {
-                        let _ = self
-                            .engine
-                            .set_dock_mode(Some(mon_id), edge, DockMode::FloatingOverlay);
+                        let _ = self.engine.set_dock_mode(
+                            Some(mon_id),
+                            edge,
+                            DockMode::FloatingOverlay,
+                        );
                     }
                     _ => {}
                 }
@@ -3122,9 +3159,9 @@ impl DaemonController {
                         let _ = self.engine.toggle_edge(Some(mon_id), edge);
                     }
                     PILL_CMD_PIN_FLOATING => {
-                        let _ = self
-                            .engine
-                            .set_dock_mode(Some(mon_id), edge, DockMode::FloatingPinned);
+                        let _ =
+                            self.engine
+                                .set_dock_mode(Some(mon_id), edge, DockMode::FloatingPinned);
                     }
                     PILL_CMD_TOGGLE_DOCK => {
                         let next_mode = if current == DockMode::NativeWorkAreaDock {
@@ -3135,9 +3172,11 @@ impl DaemonController {
                         let _ = self.engine.set_dock_mode(Some(mon_id), edge, next_mode);
                     }
                     PILL_CMD_UNPIN => {
-                        let _ = self
-                            .engine
-                            .set_dock_mode(Some(mon_id), edge, DockMode::FloatingOverlay);
+                        let _ = self.engine.set_dock_mode(
+                            Some(mon_id),
+                            edge,
+                            DockMode::FloatingOverlay,
+                        );
                     }
                     PILL_CMD_UNSTASH => {
                         let _ = self.engine.unstash_active(Some(mon_id), edge);
@@ -3259,13 +3298,12 @@ unsafe extern "system" fn main_wnd_proc(
                 let mut resp = ctrl
                     .engine
                     .handle_ipc_request(payload.req, std::process::id());
-                if is_reload
-                    && let Err(err) = ctrl.reload_config() {
-                        resp = IpcResponse::Error {
-                            code: IpcErrorCode::ConfigError,
-                            message: err,
-                        };
-                    }
+                if is_reload && let Err(err) = ctrl.reload_config() {
+                    resp = IpcResponse::Error {
+                        code: IpcErrorCode::ConfigError,
+                        message: err,
+                    };
+                }
                 let _ = payload.reply_tx.send(resp);
                 ctrl.sync_overlay_handles_to_engine();
                 ctrl.update_dismiss_timer();
@@ -3296,7 +3334,8 @@ unsafe extern "system" fn main_wnd_proc(
         }
         WM_APP_WIN_FOREGROUND => {
             let fg = WindowHandle(wparam.0 as isize);
-            ctrl.engine.on_foreground_changed_at(fg, ctrl.clock.now_ms());
+            ctrl.engine
+                .on_foreground_changed_at(fg, ctrl.clock.now_ms());
             ctrl.update_dismiss_timer();
             LRESULT(0)
         }
@@ -3327,25 +3366,31 @@ unsafe extern "system" fn main_wnd_proc(
             unsafe {
                 let _ = KillTimer(ctrl.msg_hwnd, TIMER_DRAG_POLL);
             }
-            ctrl.overlays
-                .borrow()
-                .emit_overlay_event_hide_preview();
+            ctrl.overlays.borrow().emit_overlay_event_hide_preview();
             let raw = h.to_hwnd();
             let is_zoomed = unsafe { IsZoomed(raw).as_bool() };
             if is_zoomed && ctrl.engine.is_window_stashed_and_open(h) {
-                let _ = ctrl.engine.unstash_window_with_state(h, UnstashTargetState::Maximize);
+                let _ = ctrl
+                    .engine
+                    .unstash_window_with_state(h, UnstashTargetState::Maximize);
                 ctrl.sync_overlay_handles_to_engine();
                 ctrl.update_dismiss_timer();
             } else if ctrl.engine.config().enable_drag_drop_zones
                 && let Some((drag_hwnd, target)) = ctrl.drag_capture.end_drag()
             {
-                if ctrl.engine.config().is_drag_drop_edge_enabled(target.edge()) {
+                if ctrl
+                    .engine
+                    .config()
+                    .is_drag_drop_edge_enabled(target.edge())
+                {
                     match target {
                         DragDropTarget::Edge { edge, .. } => {
                             let _ = ctrl.engine.stash_window(drag_hwnd, edge, false);
                         }
                         DragDropTarget::Corner { zone, .. } => {
-                            let _ = ctrl.engine.stash_window_and_bind_churn_zone(drag_hwnd, zone);
+                            let _ = ctrl
+                                .engine
+                                .stash_window_and_bind_churn_zone(drag_hwnd, zone);
                             let _ = ctrl.engine.config().save_to_at(&ctrl.config_path);
                         }
                     }
@@ -3366,7 +3411,9 @@ unsafe extern "system" fn main_wnd_proc(
             let raw = h.to_hwnd();
             let is_zoomed = unsafe { IsZoomed(raw).as_bool() };
             if is_zoomed && ctrl.engine.is_window_stashed_and_open(h) {
-                let _ = ctrl.engine.unstash_window_with_state(h, UnstashTargetState::Maximize);
+                let _ = ctrl
+                    .engine
+                    .unstash_window_with_state(h, UnstashTargetState::Maximize);
                 ctrl.sync_overlay_handles_to_engine();
                 ctrl.update_dismiss_timer();
             } else {
@@ -3381,13 +3428,20 @@ unsafe extern "system" fn main_wnd_proc(
             let mut wr = RECT::default();
             let cursor_in_top = if unsafe { GetWindowRect(raw, &mut wr).is_ok() } {
                 let mut pt = POINT::default();
-                unsafe { let _ = GetCursorPos(&mut pt); }
-                pt.x >= wr.left - 4 && pt.x <= wr.right + 4 && pt.y >= wr.top - 10 && pt.y <= wr.top + 60
+                unsafe {
+                    let _ = GetCursorPos(&mut pt);
+                }
+                pt.x >= wr.left - 4
+                    && pt.x <= wr.right + 4
+                    && pt.y >= wr.top - 10
+                    && pt.y <= wr.top + 60
             } else {
                 false
             };
             let lbutton_down = unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0 };
-            let win_key_down = unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) < 0 || GetAsyncKeyState(VK_RWIN.0 as i32) < 0 };
+            let win_key_down = unsafe {
+                GetAsyncKeyState(VK_LWIN.0 as i32) < 0 || GetAsyncKeyState(VK_RWIN.0 as i32) < 0
+            };
             let clicked_hwnd = LAST_MINIMIZE_CLICK_HWND.load(Ordering::Acquire);
             let clicked_time = LAST_MINIMIZE_CLICK_TIME.load(Ordering::Acquire);
             let now_ms = std::time::SystemTime::now()
@@ -3396,11 +3450,14 @@ unsafe extern "system" fn main_wnd_proc(
                 .unwrap_or(0);
             let was_recent_click = clicked_hwnd == hwnd_raw
                 && (now_ms.saturating_sub(clicked_time) <= 2000 || clicked_time == 0);
-            let was_clicked = (was_recent_click || (cursor_in_top && lbutton_down)) && !win_key_down;
+            let was_clicked =
+                (was_recent_click || (cursor_in_top && lbutton_down)) && !win_key_down;
             if was_clicked && ctrl.engine.is_window_stashed(target) {
                 LAST_MINIMIZE_CLICK_HWND.store(0, Ordering::Release);
                 LAST_MINIMIZE_CLICK_TIME.store(0, Ordering::Release);
-                let _ = ctrl.engine.unstash_window_with_state(target, UnstashTargetState::Minimize);
+                let _ = ctrl
+                    .engine
+                    .unstash_window_with_state(target, UnstashTargetState::Minimize);
                 ctrl.sync_overlay_handles_to_engine();
                 ctrl.update_dismiss_timer();
             }
@@ -3478,8 +3535,12 @@ unsafe extern "system" fn main_wnd_proc(
                         || (had_pending && !ctrl.engine.has_pending_focus_restore())
                     {
                         if was_open && !ctrl.engine.has_any_open_slot() {
-                            ctrl.charms.values_mut().for_each(DirectedCharmsDetector::reset);
-                            ctrl.bumps.values_mut().for_each(EdgeBumpStateMachine::reset);
+                            ctrl.charms
+                                .values_mut()
+                                .for_each(DirectedCharmsDetector::reset);
+                            ctrl.bumps
+                                .values_mut()
+                                .for_each(EdgeBumpStateMachine::reset);
                         }
                         ctrl.sync_overlay_handles_to_engine();
                         ctrl.update_dismiss_timer();
@@ -3526,7 +3587,8 @@ unsafe extern "system" fn main_wnd_proc(
                         };
                         let prox = edge_zone.max(corner_span) + 20;
 
-                        let active_target = armed.or_else(|| ctrl.drag_capture.hovering_target().cloned());
+                        let active_target =
+                            armed.or_else(|| ctrl.drag_capture.hovering_target().cloned());
 
                         let near = if let Some(target) = &active_target {
                             monitors
@@ -3554,14 +3616,16 @@ unsafe extern "system" fn main_wnd_proc(
                             SharedOverlayBridge {
                                 inner: ctrl.overlays.clone(),
                             }
-                            .emit_overlay_event(PillOverlayEvent::ShowDragPreview {
-                                monitor_id: mon.id.clone(),
-                                edge,
-                                band_rect,
-                                active_target,
-                                edge_zone_px: edge_zone,
-                                corner_span_px: corner_span,
-                            });
+                            .emit_overlay_event(
+                                PillOverlayEvent::ShowDragPreview {
+                                    monitor_id: mon.id.clone(),
+                                    edge,
+                                    band_rect,
+                                    active_target,
+                                    edge_zone_px: edge_zone,
+                                    corner_span_px: corner_span,
+                                },
+                            );
                         } else {
                             SharedOverlayBridge {
                                 inner: ctrl.overlays.clone(),
@@ -3588,12 +3652,19 @@ unsafe extern "system" fn main_wnd_proc(
                 }
                 TIMER_ATTENTION_PULSE => {
                     let mut ov = ctrl.overlays.borrow_mut();
-                    let has_any_attention = ov.desired_pills.values().any(|p| p.attention_count > 0);
+                    let has_any_attention =
+                        ov.desired_pills.values().any(|p| p.attention_count > 0);
                     if has_any_attention {
                         let keys: Vec<(String, ScreenEdge)> = ov
                             .desired_pills
                             .iter()
-                            .filter_map(|(k, v)| if v.attention_count > 0 { Some(k.clone()) } else { None })
+                            .filter_map(|(k, v)| {
+                                if v.attention_count > 0 {
+                                    Some(k.clone())
+                                } else {
+                                    None
+                                }
+                            })
                             .collect();
                         for (mon_id, edge) in keys {
                             ov.sync_pill(&mon_id, edge);
@@ -3626,7 +3697,10 @@ unsafe extern "system" fn main_wnd_proc(
             if code == HSHELL_FLASH || code == HSHELL_RUDEAPPACTIVATED {
                 let target_hwnd = HWND(lparam.0 as *mut _);
                 let now = ctrl.clock.now_ms();
-                if let Some((_mon, _edge, _slot)) = ctrl.engine.handle_window_attention(WindowHandle::from_hwnd(target_hwnd), now) {
+                if let Some((_mon, _edge, _slot)) = ctrl
+                    .engine
+                    .handle_window_attention(WindowHandle::from_hwnd(target_hwnd), now)
+                {
                     unsafe {
                         let _ = SetTimer(ctrl.msg_hwnd, TIMER_ATTENTION_PULSE, 33, None);
                     }
@@ -3709,10 +3783,9 @@ unsafe extern "system" fn strip_wnd_proc(
                     ctrl.handle_strip_mouse_leave(hwnd);
                     return LRESULT(0);
                 }
-                WM_MOUSEWHEEL
-                    if ctrl.handle_strip_mouse_wheel(hwnd, wparam, lparam) => {
-                        return LRESULT(0);
-                    }
+                WM_MOUSEWHEEL if ctrl.handle_strip_mouse_wheel(hwnd, wparam, lparam) => {
+                    return LRESULT(0);
+                }
                 _ => {}
             }
         }

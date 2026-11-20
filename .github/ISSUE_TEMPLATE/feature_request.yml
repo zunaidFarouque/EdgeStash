@@ -1,0 +1,47 @@
+name: Feature Request
+description: Propose an idea, new edge gesture, workflow enhancement, or UI option
+title: "[FEATURE]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We welcome ideas that make EdgeStash more intuitive and flexible while preserving zero idle overhead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement or Workflow Need
+      description: Is your feature request related to a specific limitation or workflow friction?
+      placeholder: I frequently switch between audio plugins and need a way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution or UX Behavior
+      description: Describe how you envision this feature working in practice.
+      placeholder: Add a hotkey or gesture that allows...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative designs, third-party tools, or workarounds you've explored.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: performance_impact
+    attributes:
+      label: Expected Performance Impact
+      description: EdgeStash has a strict zero-idle-CPU and zero-DPC-latency design.
+      options:
+        - "Zero background overhead (event-driven only)"
+        - "Requires periodic polling (explain why above)"
+        - "Unsure / need architectural review"
+    validations:
+      required: true

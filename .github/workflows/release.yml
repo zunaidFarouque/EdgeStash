@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Stable Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Release Binaries
+        run: cargo build --release --workspace
+
+      - name: Stage Release Package
+        shell: pwsh
+        run: |
+          $Tag = "${{ github.ref_name }}"
+          $PackageDir = "EdgeStash-$Tag-x86_64-pc-windows-msvc"
+          New-Item -ItemType Directory -Path $PackageDir -Force | Out-Null
+
+          Copy-Item "target\release\edgestash-daemon.exe" -Destination $PackageDir\
+          Copy-Item "target\release\edgestash-ui.exe" -Destination $PackageDir\
+          Copy-Item "target\release\edgestash.exe" -Destination $PackageDir\
+          Copy-Item "README.md" -Destination $PackageDir\
+          Copy-Item "LICENSE" -Destination $PackageDir\
+
+          $ZipName = "$PackageDir.zip"
+          Compress-Archive -Path "$PackageDir\*" -DestinationPath $ZipName -Force
+
+          $Hash = (Get-FileHash -Path $ZipName -Algorithm SHA256).Hash.ToLower()
+          "$Hash  $ZipName" | Set-Content -Path "$ZipName.sha256" -Encoding ascii
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            EdgeStash-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip
+            EdgeStash-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -95,8 +95,14 @@ fn offbezel_and_parked_coordinates_avoid_adjacent_monitors() {
 
     let target = Rect::new(1520, 0, 1920, 1032);
     // Slide offbezel places it just past the right edge of left_mon
-    assert_eq!(compute_offbezel_origin(&left_mon, ScreenEdge::Right, target), (1920, 0));
-    assert_eq!(compute_offbezel_origin(&left_mon, ScreenEdge::Left, Rect::new(0, 0, 400, 1032)), (-400, 0));
+    assert_eq!(
+        compute_offbezel_origin(&left_mon, ScreenEdge::Right, target),
+        (1920, 0)
+    );
+    assert_eq!(
+        compute_offbezel_origin(&left_mon, ScreenEdge::Left, Rect::new(0, 0, 400, 1032)),
+        (-400, 0)
+    );
 
     // Parked rect is completely outside the combined virtual screen [0..3840, 0..1080]
     let virtual_bounds = Rect::new(0, 0, 3840, 1080);
@@ -112,73 +118,44 @@ fn animation_easing_and_frame_interpolation_match_spec() {
     assert!(ease_out_cubic(0.5) > 0.5);
 
     // Slide from x=-400 to x=0
-    let start_frame = compute_animation_frame(
-        -400,
-        0,
-        0,
-        0,
-        0.0,
-        AnimationStyle::Slide,
-        true,
+    let start_frame = compute_animation_frame(-400, 0, 0, 0, 0.0, AnimationStyle::Slide, true);
+    assert_eq!(
+        (start_frame.x, start_frame.y, start_frame.alpha),
+        (-400, 0, None)
     );
-    assert_eq!((start_frame.x, start_frame.y, start_frame.alpha), (-400, 0, None));
 
-    let end_frame = compute_animation_frame(
-        -400,
-        0,
-        0,
-        0,
-        1.0,
-        AnimationStyle::Slide,
-        true,
-    );
+    let end_frame = compute_animation_frame(-400, 0, 0, 0, 1.0, AnimationStyle::Slide, true);
     assert_eq!((end_frame.x, end_frame.y, end_frame.alpha), (0, 0, None));
 
     // FloatAndFade open: starts 16px away along movement vector with alpha 0, ends at target with alpha 255
-    let ff_open_start = compute_animation_frame(
-        -400,
-        0,
-        0,
-        0,
-        0.0,
-        AnimationStyle::FloatAndFade,
-        true,
+    let ff_open_start =
+        compute_animation_frame(-400, 0, 0, 0, 0.0, AnimationStyle::FloatAndFade, true);
+    assert_eq!(
+        (ff_open_start.x, ff_open_start.y, ff_open_start.alpha),
+        (-16, 0, Some(0))
     );
-    assert_eq!((ff_open_start.x, ff_open_start.y, ff_open_start.alpha), (-16, 0, Some(0)));
 
-    let ff_open_end = compute_animation_frame(
-        -400,
-        0,
-        0,
-        0,
-        1.0,
-        AnimationStyle::FloatAndFade,
-        true,
+    let ff_open_end =
+        compute_animation_frame(-400, 0, 0, 0, 1.0, AnimationStyle::FloatAndFade, true);
+    assert_eq!(
+        (ff_open_end.x, ff_open_end.y, ff_open_end.alpha),
+        (0, 0, Some(255))
     );
-    assert_eq!((ff_open_end.x, ff_open_end.y, ff_open_end.alpha), (0, 0, Some(255)));
 
     // FloatAndFade close: starts at current (0,0) alpha 255, glides 16px back to (-16,0) alpha 0
-    let ff_close_start = compute_animation_frame(
-        0,
-        0,
-        -400,
-        0,
-        0.0,
-        AnimationStyle::FloatAndFade,
-        false,
+    let ff_close_start =
+        compute_animation_frame(0, 0, -400, 0, 0.0, AnimationStyle::FloatAndFade, false);
+    assert_eq!(
+        (ff_close_start.x, ff_close_start.y, ff_close_start.alpha),
+        (0, 0, Some(255))
     );
-    assert_eq!((ff_close_start.x, ff_close_start.y, ff_close_start.alpha), (0, 0, Some(255)));
 
-    let ff_close_end = compute_animation_frame(
-        0,
-        0,
-        -400,
-        0,
-        1.0,
-        AnimationStyle::FloatAndFade,
-        false,
+    let ff_close_end =
+        compute_animation_frame(0, 0, -400, 0, 1.0, AnimationStyle::FloatAndFade, false);
+    assert_eq!(
+        (ff_close_end.x, ff_close_end.y, ff_close_end.alpha),
+        (-16, 0, Some(0))
     );
-    assert_eq!((ff_close_end.x, ff_close_end.y, ff_close_end.alpha), (-16, 0, Some(0)));
 }
 
 #[test]

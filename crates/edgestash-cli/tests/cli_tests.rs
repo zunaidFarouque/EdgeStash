@@ -103,9 +103,7 @@ fn parses_all_core_cli_subcommands_into_ipc_requests() {
     );
 
     assert_eq!(
-        parse(&["edgestash-cli", "ungroup", "99"])
-            .unwrap()
-            .request,
+        parse(&["edgestash-cli", "ungroup", "99"]).unwrap().request,
         IpcRequest::UngroupWindow { hwnd: 99 }
     );
 
@@ -128,7 +126,9 @@ fn parses_all_core_cli_subcommands_into_ipc_requests() {
     );
 
     assert_eq!(
-        parse(&["edgestash-cli", "alert", "right", "--hwnd", "888"]).unwrap().request,
+        parse(&["edgestash-cli", "alert", "right", "--hwnd", "888"])
+            .unwrap()
+            .request,
         IpcRequest::SimulateWindowAttention {
             hwnd: Some(888),
             edge: Some(ScreenEdge::Right),
