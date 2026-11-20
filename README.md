@@ -6,7 +6,7 @@
 
 **Ultra-Low-Latency Edge Drawers &amp; Window Stashing for Windows 11/10**
 
-[![CI](https://github.com/zunaidfarouque/EdgeStash/actions/workflows/ci.yml/badge.svg)](https://github.com/zunaidfarouque/EdgeStash/actions/workflows/ci.yml)
+[![CI](https://github.com/zunaidFarouque/EdgeStash/actions/workflows/ci.yml/badge.svg)](https://github.com/zunaidFarouque/EdgeStash/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows 10 / 11](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4.svg?logo=windows)](https://microsoft.com/windows)
 [![Rust: 2024 Edition](https://img.shields.io/badge/Rust-2024%20Edition-dea584.svg?logo=rust)](https://www.rust-lang.org)
@@ -91,9 +91,12 @@ flowchart TD
 
 ---
 
+<!--
+TODO: Visual Showcase (Uncomment when demo GIFs / screen captures are recorded in docs/assets/)
+See docs/assets/README.md for capture specifications and suggested scenarios.
+
 ## Visual Showcase
 
-<!-- Slide 1: Corner Churn -->
 | Corner Churn Gesture | Edge Bump Peek |
 | :---: | :---: |
 | ![Corner Churn Demo](docs/assets/banner.svg) | ![Edge Bump Demo](docs/assets/banner.svg) |
@@ -103,20 +106,22 @@ flowchart TD
 | :---: | :---: |
 | ![Drop Zones Demo](docs/assets/banner.svg) | ![Settings UI Demo](docs/assets/banner.svg) |
 | *Visual drag previews remain crisp and visible* | *Customize edge zones, churn sensitivity, and hotkeys* |
-
-*(High-framerate demonstration GIFs can be placed in `docs/assets/`. See [`docs/assets/README.md`](docs/assets/README.md) for recording guidelines.)*
+-->
 
 ---
 
 ## Quick Start
 
+<!--
+TODO: Precompiled Release (Uncomment once first git tag such as v0.1.0 is published via release.yml)
 ### Option A: Precompiled Release (Recommended)
 
-1. Download the latest `EdgeStash-vX.Y.Z-x86_64-pc-windows-msvc.zip` from [Releases](https://github.com/zunaidfarouque/EdgeStash/releases).
+1. Download the latest `EdgeStash-vX.Y.Z-x86_64-pc-windows-msvc.zip` from [Releases](https://github.com/zunaidFarouque/EdgeStash/releases).
 2. Extract the archive into a folder (e.g. `C:\Tools\EdgeStash` or `%LOCALAPPDATA%\Programs\EdgeStash`).
 3. Run `edgestash-daemon.exe`. The EdgeStash icon will appear in your system tray.
+-->
 
-### Option B: Build from Source
+### Build from Source
 
 #### Prerequisites
 - Windows 10 (Build 19041+) or Windows 11
@@ -125,7 +130,7 @@ flowchart TD
 
 ```pwsh
 # 1. Clone the repository
-git clone https://github.com/zunaidfarouque/EdgeStash.git
+git clone https://github.com/zunaidFarouque/EdgeStash.git
 cd EdgeStash
 
 # 2. Run the automated test suite
