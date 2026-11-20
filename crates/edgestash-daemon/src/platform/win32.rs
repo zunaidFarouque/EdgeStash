@@ -23,9 +23,9 @@ use windows::Win32::UI::Shell::{
     SHQueryUserNotificationState, TaskbarList,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, GA_ROOT, GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE, GetAncestor,
+    CreateWindowExW, DestroyWindow, FindWindowExW, GA_ROOT, GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE, GetAncestor,
     GetClassNameW, GetCursorPos, GetDesktopWindow, GetForegroundWindow, GetParent, GetShellWindow,
-    GetWindowLongPtrW, GetWindowPlacement, GetWindowRect, GetWindowThreadProcessId, HWND_NOTOPMOST,
+    GetTopWindow, GetWindowLongPtrW, GetWindowPlacement, GetWindowRect, GetWindowThreadProcessId, HWND_NOTOPMOST,
     HWND_TOPMOST, IsIconic, IsWindow, IsWindowVisible, IsZoomed, MONITORINFOF_PRIMARY, PostMessageW,
     SC_MAXIMIZE, SC_MINIMIZE, SMTO_ABORTIFHUNG, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
     SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE,
@@ -33,7 +33,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WINDOWPLACEMENT, WM_CLOSE, WM_GETTEXT, WM_SYSCOMMAND, WS_CAPTION, WS_EX_NOACTIVATE,
     WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
-use windows::core::{GUID, Result, w};
+use windows::core::{GUID, PCWSTR, Result, w};
 
 use crate::animator::{Win32TransitionTarget, animate_windows_transition};
 use crate::appbar::register_or_update_native_dock;
@@ -121,6 +121,43 @@ impl Win32WindowSystem {
         }
         if let Some(tbl) = slot.as_ref() {
             f(tbl);
+        }
+    }
+}
+
+/// Brings any transient Windows Shell drag-and-drop feedback windows (`SysDragImage`)
+/// to the very head of the `HWND_TOPMOST` z-band so that native drag preview thumbnails
+/// remain visible over open floating drawers without being occluded.
+pub fn bring_drag_image_to_top() {
+    let mut current = HWND::default();
+    for _ in 0..8 {
+        let found = unsafe {
+            FindWindowExW(
+                HWND::default(),
+                current,
+                w!("SysDragImage"),
+                PCWSTR::null(),
+            )
+        };
+        match found {
+            Ok(h) if !h.0.is_null() => {
+                let is_already_top = unsafe { GetTopWindow(HWND::default()) == Ok(h) };
+                if !is_already_top {
+                    unsafe {
+                        let _ = SetWindowPos(
+                            h,
+                            HWND_TOPMOST,
+                            0,
+                            0,
+                            0,
+                            0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                        );
+                    }
+                }
+                current = h;
+            }
+            _ => break,
         }
     }
 }
@@ -386,6 +423,9 @@ impl WindowSystem for Win32WindowSystem {
                 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
             );
+        }
+        if topmost {
+            bring_drag_image_to_top();
         }
     }
 

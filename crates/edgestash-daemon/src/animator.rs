@@ -15,6 +15,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::dwm::{BorderInsets, get_invisible_border_insets, set_window_cloaked};
 use crate::geometry::visible_to_window_origin;
+use crate::platform::win32::bring_drag_image_to_top;
 
 /// Single interpolated frame pose computed for an animation step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,6 +166,9 @@ pub fn animate_windows_transition(
                     refresh_anim_target(p.hwnd);
                 }
             }
+            if is_opening {
+                bring_drag_image_to_top();
+            }
             return;
         }
 
@@ -230,6 +234,7 @@ pub fn animate_windows_transition(
                 );
                 refresh_anim_target(p.hwnd);
             }
+            bring_drag_image_to_top();
         } else {
             for p in &prepared {
                 // Cloak first while alpha is 0 / off-bezel so removing WS_EX_LAYERED never flashes!

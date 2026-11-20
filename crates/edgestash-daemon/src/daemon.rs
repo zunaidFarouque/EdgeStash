@@ -69,7 +69,9 @@ use windows::core::{PCWSTR, Result as WinResult, implement, w};
 
 use crate::crash_recovery::{CrashManifest, recover_orphans_with};
 use crate::geometry::{HeaderButtonKind, header_button_rects};
-use crate::platform::win32::{Win32AppBar, Win32VirtualDesktop, Win32WindowSystem};
+use crate::platform::win32::{
+    Win32AppBar, Win32VirtualDesktop, Win32WindowSystem, bring_drag_image_to_top,
+};
 use crate::platform::{
     Clock, MonitorInfo, PillOverlayEvent, SystemClock, UnstashTargetState, VisualOverlayApi,
     WindowHandle, WindowSystem,
@@ -1032,6 +1034,7 @@ impl OverlayWindowState {
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
                 );
             }
+            bring_drag_image_to_top();
         }
     }
 
@@ -2293,6 +2296,16 @@ impl DaemonController {
     }
 
     fn handle_global_mouse_move(&mut self, pt: POINT) {
+        if self.engine.has_open_floating_drawer() {
+            let mouse_down = unsafe {
+                ((GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0)
+                    || ((GetAsyncKeyState(VK_RBUTTON.0 as i32) as u16 & 0x8000) != 0)
+            };
+            if mouse_down {
+                bring_drag_image_to_top();
+            }
+        }
+
         let monitors = self.overlays.borrow().monitors.clone();
         let cfg = self.engine.config().clone();
         let now = self.clock.now_ms();

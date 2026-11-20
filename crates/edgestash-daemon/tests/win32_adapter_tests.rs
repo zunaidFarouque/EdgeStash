@@ -192,3 +192,113 @@ fn real_direct2d_and_directcomposition_pipeline_renders_offscreen() {
         .render_scrim_alpha(64, 64, 0.25)
         .expect("Direct2D alpha scrim render succeeds");
 }
+
+#[test]
+fn test_bring_drag_image_to_top_promotes_drag_preview_above_topmost_drawer() {
+    use edgestash_daemon::platform::win32::bring_drag_image_to_top;
+    use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DefWindowProcW, DestroyWindow, GW_HWNDNEXT, GetTopWindow, GetWindow,
+        HWND_TOPMOST, RegisterClassW, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_NOMOVE,
+        SWP_NOSIZE, SW_SHOWNA, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOPMOST,
+        WS_EX_TRANSPARENT, WS_POPUP,
+    };
+    use windows::core::w;
+
+    unsafe extern "system" fn test_drag_wnd_proc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+    }
+
+    let hinst = unsafe { GetModuleHandleW(None).unwrap() };
+    let wc = WNDCLASSW {
+        hInstance: hinst.into(),
+        lpszClassName: w!("SysDragImage"),
+        lpfnWndProc: Some(test_drag_wnd_proc),
+        ..Default::default()
+    };
+    unsafe {
+        let _ = RegisterClassW(&wc);
+    }
+
+    // 1. Create a simulated SysDragImage window
+    let drag_hwnd = unsafe {
+        CreateWindowExW(
+            WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
+            w!("SysDragImage"),
+            w!("SysDragImage"),
+            WS_POPUP,
+            100,
+            100,
+            50,
+            50,
+            None,
+            None,
+            hinst,
+            None,
+        )
+        .expect("create SysDragImage")
+    };
+    unsafe {
+        let _ = ShowWindow(drag_hwnd, SW_SHOWNA);
+    }
+
+    // 2. Create a simulated stashed drawer window and promote it to HWND_TOPMOST
+    let drawer_hwnd = unsafe {
+        CreateWindowExW(
+            WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+            w!("STATIC"),
+            w!("EdgeStashDrawerTest"),
+            WS_POPUP,
+            50,
+            50,
+            400,
+            400,
+            None,
+            None,
+            hinst,
+            None,
+        )
+        .expect("create drawer window")
+    };
+    unsafe {
+        let _ = ShowWindow(drawer_hwnd, SW_SHOWNA);
+        let _ = SetWindowPos(
+            drawer_hwnd,
+            HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+
+    // 3. Call bring_drag_image_to_top()
+    bring_drag_image_to_top();
+
+    // Verify relative Z-order: drag_hwnd must be placed ahead of drawer_hwnd in the topmost band
+    let mut z_order = Vec::new();
+    let mut curr = unsafe { GetTopWindow(HWND::default()).ok() };
+    while let Some(w) = curr {
+        if w.0.is_null() {
+            break;
+        }
+        if w == drag_hwnd || w == drawer_hwnd {
+            z_order.push(w);
+        }
+        curr = unsafe { GetWindow(w, GW_HWNDNEXT).ok() };
+    }
+    assert_eq!(z_order, vec![drag_hwnd, drawer_hwnd]);
+
+    // Cleanup
+    unsafe {
+        let _ = DestroyWindow(drawer_hwnd);
+        let _ = DestroyWindow(drag_hwnd);
+    }
+}

@@ -846,6 +846,11 @@ where
         }
     }
 
+    /// Returns true if any floating overlay drawer is currently open on any monitor.
+    pub fn has_open_floating_drawer(&self) -> bool {
+        self.open_floating_edge.is_some()
+    }
+
     /// Toggles whichever floating drawer is currently open (or the first available slot).
     pub fn toggle_active(&mut self) -> Result<bool, EngineError> {
         if let Some((mon, edge, idx)) = self.open_floating_edge.clone() {
