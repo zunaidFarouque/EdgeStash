@@ -356,7 +356,7 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
     let mut opened = false;
     for _ in 0..30 {
         unsafe {
-            let _ = PostMessageW(right_strip, WM_MOUSEMOVE, WPARAM(0), LPARAM(0));
+            let _ = PostMessageW(right_strip, WM_MOUSEMOVE, WPARAM(0), LPARAM(200 << 16));
         }
         thread::sleep(Duration::from_millis(40));
         if let Ok(IpcResponse::Status(snap)) = client.send(&IpcRequest::Status)

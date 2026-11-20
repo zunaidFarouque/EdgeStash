@@ -18,10 +18,7 @@ use crate::platform::WindowHandle;
 pub fn has_active_child_popup(stashed_hwnd: HWND) -> bool {
     unsafe {
         let popup = GetLastActivePopup(stashed_hwnd);
-        if popup != stashed_hwnd && IsWindowVisible(popup).as_bool() {
-            return true;
-        }
-        false
+        popup != stashed_hwnd && IsWindowVisible(popup).as_bool()
     }
 }
 
