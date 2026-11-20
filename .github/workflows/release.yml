@@ -45,7 +45,7 @@ jobs:
           "$Hash  $ZipName" | Set-Content -Path "$ZipName.sha256" -Encoding ascii
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             EdgeStash-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip
