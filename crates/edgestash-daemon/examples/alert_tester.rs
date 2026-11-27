@@ -150,7 +150,7 @@ fn main() {
 fn run_app() -> windows::core::Result<()> {
     unsafe {
         let hinst = GetModuleHandleW(None)?;
-        let cls_name = w!("EdgeStashAlertTesterClass");
+        let cls_name = w!("ChatAlertSimulatorWindowClass");
 
         let wc = WNDCLASSW {
             hInstance: hinst.into(),
