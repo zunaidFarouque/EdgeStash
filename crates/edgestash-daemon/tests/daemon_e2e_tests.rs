@@ -338,6 +338,16 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
         .expect("close drawer via toggle");
     assert!(matches!(close_resp, IpcResponse::Ok { .. }));
 
+    // Wait for drawer to finish closing animation before re-testing via trigger strip
+    for _ in 0..30 {
+        if let Ok(IpcResponse::Status(snap)) = client.send(&IpcRequest::Status)
+            && snap.slots.first().is_some_and(|s| !s.is_open)
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+
     std::fs::write(
         dir.join("config.toml"),
         "gesture_mode = \"EdgeHover\"\nedge_dwell_ms = 0\nopen_duration_ms = 50\nclose_duration_ms = 50\nauto_focus_on_open = false\ndisable_in_fullscreen = false\nedge_pill_style = \"AppIconsStack\"\n",
@@ -371,7 +381,7 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
     }
     let right_strip = right_strip.expect("expected vertical Right trigger strip window");
     let mut opened = false;
-    for _ in 0..30 {
+    for _ in 0..60 {
         unsafe {
             let _ = PostMessageW(right_strip, WM_MOUSEMOVE, WPARAM(0), LPARAM(0));
         }
