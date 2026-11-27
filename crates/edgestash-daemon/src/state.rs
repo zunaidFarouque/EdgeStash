@@ -48,6 +48,7 @@ pub struct StashedWindow {
     pub hwnd: WindowHandle,
     pub title: String,
     pub process_name: String,
+    pub pid: u32,
     pub original_ex_style: isize,
     pub original_rect: Rect,
     pub thickness_px: i32,
@@ -191,6 +192,9 @@ where
 
     /// Updates live configuration (from TOML file watcher or IPC reload).
     pub fn update_config(&mut self, cfg: EdgeStashConfig) {
+        if cfg.dim_background == 0 && self.cfg.dim_background > 0 {
+            self.hide_dim_scrim();
+        }
         self.cfg = cfg;
     }
 
@@ -321,6 +325,7 @@ where
             hwnd,
             title: snap.title,
             process_name: snap.process_name,
+            pid: snap.pid,
             original_ex_style: snap.ex_style,
             original_rect: snap.window_rect,
             thickness_px,
@@ -1400,10 +1405,34 @@ where
             .collect();
 
         for old_key in orphaned_keys {
+            if let Some((mon, edge, _)) = &self.open_floating_edge
+                && *mon == old_key.0
+                && *edge == old_key.1
+            {
+                self.open_floating_edge = None;
+                self.hide_dim_scrim();
+                self.overlay
+                    .emit_overlay_event(PillOverlayEvent::HideDrawerHeader {
+                        monitor_id: old_key.0.clone(),
+                        edge: old_key.1,
+                    });
+            }
             if let Some(old_deck) = self.decks.remove(&old_key) {
                 let target_key = (primary.id.clone(), old_key.1);
                 let target_deck = self.decks.entry(target_key.clone()).or_default();
                 for mut slot in old_deck.slots {
+                    if slot.dock_mode == DockMode::NativeWorkAreaDock
+                        && slot.docked_reserved_rect.is_some()
+                    {
+                        self.appbar.register_or_update_dock(
+                            &old_key.0,
+                            old_key.1,
+                            Rect::default(),
+                            0,
+                            false,
+                        );
+                        slot.docked_reserved_rect = None;
+                    }
                     slot.monitor_id = primary.id.clone();
                     slot.is_open = false;
                     target_deck.slots.push(slot);
@@ -1553,6 +1582,7 @@ where
             IpcRequest::Ping => IpcResponse::Pong {
                 version: env!("CARGO_PKG_VERSION").to_string(),
                 pid,
+                protocol_version: edgestash_ipc::protocol::CURRENT_IPC_PROTOCOL_VERSION,
             },
             IpcRequest::Status => IpcResponse::Status(self.status_snapshot(pid)),
             IpcRequest::StashForeground {
@@ -1935,14 +1965,12 @@ where
     }
 
     fn hide_dim_scrim(&self) {
-        if self.cfg.dim_background > 0 {
-            self.overlay
-                .emit_overlay_event(PillOverlayEvent::SetDimScrim {
-                    visible: false,
-                    monitor_rect: Rect::default(),
-                    opacity_percent: 0,
-                });
-        }
+        self.overlay
+            .emit_overlay_event(PillOverlayEvent::SetDimScrim {
+                visible: false,
+                monitor_rect: Rect::default(),
+                opacity_percent: 0,
+            });
     }
 
     fn cleanup_after_window_removal(
@@ -2225,6 +2253,8 @@ where
                         original_rect: w.original_rect,
                         monitor_id: key.0.clone(),
                         edge: key.1,
+                        pid: w.pid,
+                        process_name: w.process_name.clone(),
                     });
                 }
             }

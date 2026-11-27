@@ -7,6 +7,13 @@ use crate::types::{ChurnZoneId, DockMode, Rect, ScreenEdge, VirtualDesktopMode};
 /// Default Windows Named Pipe endpoint for daemon IPC.
 pub const DEFAULT_PIPE_NAME: &str = r"\\.\pipe\EdgeStash";
 
+/// Current IPC protocol version.
+pub const CURRENT_IPC_PROTOCOL_VERSION: u16 = 1;
+
+fn default_protocol_version() -> u16 {
+    CURRENT_IPC_PROTOCOL_VERSION
+}
+
 /// Maximum accepted IPC frame payload size (1 MiB) to protect against malformed framing.
 pub const MAX_IPC_FRAME_BYTES: usize = 1024 * 1024;
 
@@ -118,10 +125,20 @@ pub struct DaemonStatusSnapshot {
 /// Structured IPC responses from `edgestash-daemon`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IpcResponse {
-    Pong { version: String, pid: u32 },
+    Pong {
+        version: String,
+        pid: u32,
+        #[serde(default = "default_protocol_version")]
+        protocol_version: u16,
+    },
     Status(DaemonStatusSnapshot),
-    Ok { message: String },
-    Error { code: IpcErrorCode, message: String },
+    Ok {
+        message: String,
+    },
+    Error {
+        code: IpcErrorCode,
+        message: String,
+    },
 }
 
 /// Encodes a serializable message into a 4-byte little-endian length-prefixed JSON frame.

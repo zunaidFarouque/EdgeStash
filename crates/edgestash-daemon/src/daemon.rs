@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock, mpsc};
 use std::thread;
+use std::time::Duration;
 
 use edgestash_ipc::config::{DragDropModifierKey, EdgeStashConfig, GestureMode, HotkeySpec};
 use edgestash_ipc::pipe::{PipeClient, PipeServer};
@@ -579,6 +580,28 @@ fn to_wide_null(s: &str) -> Vec<u16> {
 
 /// Performs startup recovery and registers panic/console emergency recovery hooks.
 pub fn emergency_restore_from_manifest(manifest_path: &Path) -> usize {
+    struct ScopedCoInit(bool);
+    impl ScopedCoInit {
+        fn new() -> Self {
+            let hr = unsafe {
+                windows::Win32::System::Com::CoInitializeEx(
+                    None,
+                    windows::Win32::System::Com::COINIT_APARTMENTTHREADED,
+                )
+            };
+            Self(hr.is_ok())
+        }
+    }
+    impl Drop for ScopedCoInit {
+        fn drop(&mut self) {
+            if self.0 {
+                unsafe {
+                    windows::Win32::System::Com::CoUninitialize();
+                }
+            }
+        }
+    }
+    let _co_init = ScopedCoInit::new();
     let sys = Win32WindowSystem::new();
     let monitors = sys.enumerate_monitors();
     let fallback_center = monitors
@@ -592,7 +615,7 @@ pub fn emergency_restore_from_manifest(manifest_path: &Path) -> usize {
 
     recover_orphans_with(
         manifest_path,
-        |hwnd| sys.is_window(hwnd) && sys.is_window_cloaked(hwnd),
+        |hwnd| sys.is_window(hwnd),
         |hwnd, orig_ex, orig_rect| {
             let visible_somewhere = monitors.iter().any(|m| {
                 m.rect.contains_inclusive(
@@ -4051,14 +4074,15 @@ fn spawn_config_watcher_thread(
         let Ok(dir_handle) = handle else {
             return;
         };
-        let mut buf = [0u8; 4096];
+        let mut buf = [0u32; 1024];
         let mut returned = 0u32;
+        let mut last_reload = std::time::Instant::now() - Duration::from_secs(10);
         while !shutdown_flag.load(Ordering::Acquire) {
             let res = unsafe {
                 ReadDirectoryChangesW(
                     dir_handle,
                     buf.as_mut_ptr() as *mut _,
-                    buf.len() as u32,
+                    (buf.len() * 4) as u32,
                     false,
                     FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME,
                     Some(&mut returned),
@@ -4069,13 +4093,42 @@ fn spawn_config_watcher_thread(
             if res.is_err() || shutdown_flag.load(Ordering::Acquire) {
                 break;
             }
-            unsafe {
-                let _ = PostMessageW(
-                    HWND(msg_hwnd_raw as *mut _),
-                    WM_APP_RELOAD_CONFIG,
-                    WPARAM(0),
-                    LPARAM(0),
-                );
+            if returned == 0 {
+                continue;
+            }
+
+            let mut is_config_change = false;
+            let mut offset = 0usize;
+            let byte_ptr = buf.as_ptr() as *const u8;
+            while offset < returned as usize {
+                let info = unsafe {
+                    &*(byte_ptr.add(offset)
+                        as *const windows::Win32::Storage::FileSystem::FILE_NOTIFY_INFORMATION)
+                };
+                let name_len = (info.FileNameLength as usize) / 2;
+                let name_slice =
+                    unsafe { std::slice::from_raw_parts(info.FileName.as_ptr(), name_len) };
+                let name = String::from_utf16_lossy(name_slice);
+                if name.eq_ignore_ascii_case("config.toml") {
+                    is_config_change = true;
+                    break;
+                }
+                if info.NextEntryOffset == 0 {
+                    break;
+                }
+                offset += info.NextEntryOffset as usize;
+            }
+
+            if is_config_change && last_reload.elapsed() >= Duration::from_millis(100) {
+                last_reload = std::time::Instant::now();
+                unsafe {
+                    let _ = PostMessageW(
+                        HWND(msg_hwnd_raw as *mut _),
+                        WM_APP_RELOAD_CONFIG,
+                        WPARAM(0),
+                        LPARAM(0),
+                    );
+                }
             }
         }
         unsafe {
@@ -4096,6 +4149,7 @@ pub fn run_daemon_with_options(
 ) -> Result<(), String> {
     unsafe {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        let _ = windows::Win32::System::Threading::SetProcessShutdownParameters(0x280, 0);
     }
 
     let _mutex_guard = if let Some(mutex_name) = &opts.single_instance_mutex {

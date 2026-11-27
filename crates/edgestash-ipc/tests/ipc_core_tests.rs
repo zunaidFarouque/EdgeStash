@@ -269,3 +269,41 @@ fn config_defaults_and_clamping_cover_dim_fade_floating_pinned_and_area_aware_sc
     let roundtrip: IpcRequest = decode_frame(&encode_frame(&req).unwrap()).unwrap();
     assert_eq!(roundtrip, req);
 }
+
+#[test]
+fn preset_name_validation_enforces_windows_reserved_names_and_limits() {
+    use edgestash_ipc::config::validate_preset_name;
+
+    // Valid preset names
+    assert!(validate_preset_name("my_preset").is_ok());
+    assert!(validate_preset_name("work-2026").is_ok());
+    assert!(validate_preset_name("presentation.mode").is_ok());
+
+    // Disallowed reserved device names before first dot
+    assert!(validate_preset_name("CON").is_err());
+    assert!(validate_preset_name("con").is_err());
+    assert!(validate_preset_name("prn.toml").is_err());
+    assert!(validate_preset_name("AUX").is_err());
+    assert!(validate_preset_name("NUL").is_err());
+    assert!(validate_preset_name("com1").is_err());
+    assert!(validate_preset_name("COM9").is_err());
+    assert!(validate_preset_name("lpt3.preset").is_err());
+    assert!(validate_preset_name("COM¹").is_err());
+    assert!(validate_preset_name("LPT²").is_err());
+
+    // Disallowed trailing dots/spaces and starting spaces
+    assert!(validate_preset_name("trailing_dot.").is_err());
+    assert!(validate_preset_name("trailing_space ").is_err());
+    assert!(validate_preset_name(" leading_space").is_err());
+
+    // Disallowed pure . or ..
+    assert!(validate_preset_name(".").is_err());
+    assert!(validate_preset_name("..").is_err());
+    assert!(validate_preset_name("").is_err());
+
+    // Disallowed over 100 characters
+    let long_name = "a".repeat(101);
+    assert!(validate_preset_name(&long_name).is_err());
+    let ok_100 = "a".repeat(100);
+    assert!(validate_preset_name(&ok_100).is_ok());
+}

@@ -145,10 +145,11 @@ fn formats_ipc_responses_for_human_and_json_output() {
         &IpcResponse::Pong {
             version: "0.1.0".to_string(),
             pid: 4242,
+            protocol_version: 1,
         },
         false,
     );
-    assert_eq!(pong, "pong v0.1.0 (pid=4242)");
+    assert_eq!(pong, "pong v0.1.0 (pid=4242, proto=v1)");
 
     let err = format_response(
         &IpcResponse::Error {

@@ -264,7 +264,7 @@ impl EdgeStashUiModel {
         status: Option<std::io::Result<IpcResponse>>,
     ) {
         match ping {
-            Ok(IpcResponse::Pong { version, pid }) => {
+            Ok(IpcResponse::Pong { version, pid, .. }) => {
                 self.connection = DaemonConnection::Connected { version, pid };
                 match status {
                     Some(Ok(IpcResponse::Status(snap))) => {

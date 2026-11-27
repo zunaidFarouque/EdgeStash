@@ -3,29 +3,40 @@ use std::io::{self, Read, Write};
 use std::ptr;
 
 use windows::Win32::Foundation::{
-    BOOL, CloseHandle, ERROR_FILE_NOT_FOUND, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, GENERIC_READ,
-    GENERIC_WRITE, GetLastError, HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree,
+    BOOL, CloseHandle, ERROR_FILE_NOT_FOUND, ERROR_IO_PENDING, ERROR_PIPE_BUSY,
+    ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE, HLOCAL,
+    INVALID_HANDLE_VALUE, LocalFree, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
 use windows::Win32::Security::Authorization::{
-    ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
 };
-use windows::Win32::Security::{PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES};
+use windows::Win32::Security::{
+    GetTokenInformation, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER,
+    TokenUser,
+};
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_NONE, FlushFileBuffers, OPEN_EXISTING,
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED,
+    FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_NONE, FlushFileBuffers, OPEN_EXISTING,
     PIPE_ACCESS_DUPLEX, ReadFile, WriteFile,
 };
+use windows::Win32::System::IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED};
 use windows::Win32::System::Pipes::{
-    ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE,
-    PIPE_UNLIMITED_INSTANCES, PIPE_WAIT, WaitNamedPipeW,
+    ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_BYTE,
+    PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_UNLIMITED_INSTANCES, PIPE_WAIT,
+    WaitNamedPipeW,
+};
+use windows::Win32::System::Threading::{
+    CreateEventW, GetCurrentProcess, OpenProcessToken, WaitForSingleObject,
 };
 use windows::core::PCWSTR;
 
 use crate::protocol::{IpcRequest, IpcResponse, read_frame, write_frame};
 
 const PIPE_BUFFER_SIZE: u32 = 65_536;
-// Grants Full Access to Administrators/SYSTEM and Read+Write to Authenticated Users at Medium integrity.
-const CROSS_INTEGRITY_SDDL: &str = "D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)S:(ML;;NW;;;ME)";
-const FALLBACK_DACL_SDDL: &str = "D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)";
+const DEFAULT_PIPE_TIMEOUT_MS: u32 = 3000;
+// Win32 Security Quality of Service flags for client handle protection
+const SECURITY_SQOS_PRESENT: u32 = 0x0010_0000;
+const SECURITY_IDENTIFICATION: u32 = 0x0002_0000;
 
 struct OwnedHandle(HANDLE);
 
@@ -46,14 +57,49 @@ impl Read for OwnedHandle {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut bytes_read = 0u32;
         let to_read = u32::try_from(buf.len()).unwrap_or(u32::MAX);
+
         unsafe {
-            ReadFile(
+            let event = CreateEventW(None, true, false, None)
+                .map_err(|e| io::Error::from_raw_os_error(e.code().0))?;
+            let mut ov = OVERLAPPED {
+                hEvent: event,
+                ..Default::default()
+            };
+
+            let read_res = ReadFile(
                 self.0,
                 Some(&mut buf[..to_read as usize]),
                 Some(&mut bytes_read),
-                None,
-            )
-            .map_err(win32_err_to_io)?;
+                Some(&mut ov),
+            );
+
+            if let Err(err) = read_res {
+                let err_code = GetLastError();
+                if err_code == ERROR_IO_PENDING {
+                    let wait_res = WaitForSingleObject(event, DEFAULT_PIPE_TIMEOUT_MS);
+                    if wait_res == WAIT_TIMEOUT {
+                        let _ = CancelIoEx(self.0, Some(&ov));
+                        let _ = CloseHandle(event);
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "named pipe read timed out",
+                        ));
+                    }
+                    if wait_res != WAIT_OBJECT_0 {
+                        let _ = CloseHandle(event);
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "named pipe wait failed",
+                        ));
+                    }
+                    GetOverlappedResult(self.0, &ov, &mut bytes_read, false)
+                        .map_err(win32_err_to_io)?;
+                } else {
+                    let _ = CloseHandle(event);
+                    return Err(win32_err_to_io(err));
+                }
+            }
+            let _ = CloseHandle(event);
         }
         Ok(bytes_read as usize)
     }
@@ -63,14 +109,49 @@ impl Write for OwnedHandle {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let mut bytes_written = 0u32;
         let to_write = u32::try_from(buf.len()).unwrap_or(u32::MAX);
+
         unsafe {
-            WriteFile(
+            let event = CreateEventW(None, true, false, None)
+                .map_err(|e| io::Error::from_raw_os_error(e.code().0))?;
+            let mut ov = OVERLAPPED {
+                hEvent: event,
+                ..Default::default()
+            };
+
+            let write_res = WriteFile(
                 self.0,
                 Some(&buf[..to_write as usize]),
                 Some(&mut bytes_written),
-                None,
-            )
-            .map_err(win32_err_to_io)?;
+                Some(&mut ov),
+            );
+
+            if let Err(err) = write_res {
+                let err_code = GetLastError();
+                if err_code == ERROR_IO_PENDING {
+                    let wait_res = WaitForSingleObject(event, DEFAULT_PIPE_TIMEOUT_MS);
+                    if wait_res == WAIT_TIMEOUT {
+                        let _ = CancelIoEx(self.0, Some(&ov));
+                        let _ = CloseHandle(event);
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "named pipe write timed out",
+                        ));
+                    }
+                    if wait_res != WAIT_OBJECT_0 {
+                        let _ = CloseHandle(event);
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "named pipe wait failed",
+                        ));
+                    }
+                    GetOverlappedResult(self.0, &ov, &mut bytes_written, false)
+                        .map_err(win32_err_to_io)?;
+                } else {
+                    let _ = CloseHandle(event);
+                    return Err(win32_err_to_io(err));
+                }
+            }
+            let _ = CloseHandle(event);
         }
         Ok(bytes_written as usize)
     }
@@ -111,9 +192,64 @@ fn win32_err_to_io(err: windows::core::Error) -> io::Error {
     }
 }
 
+fn get_current_user_sid() -> Option<String> {
+    unsafe {
+        let mut token = HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+            return None;
+        }
+        let _token_guard = OwnedHandle(token);
+
+        let mut len = 0u32;
+        let _ = GetTokenInformation(token, TokenUser, None, 0, &mut len);
+        if len == 0 {
+            return None;
+        }
+
+        let mut buf = vec![0u8; len as usize];
+        if GetTokenInformation(
+            token,
+            TokenUser,
+            Some(buf.as_mut_ptr() as *mut _),
+            len,
+            &mut len,
+        )
+        .is_err()
+        {
+            return None;
+        }
+
+        let token_user = &*(buf.as_ptr() as *const TOKEN_USER);
+        let mut str_ptr = windows::core::PWSTR::null();
+        if ConvertSidToStringSidW(token_user.User.Sid, &mut str_ptr).is_err() {
+            return None;
+        }
+        if str_ptr.is_null() {
+            return None;
+        }
+
+        let s = str_ptr.to_string().ok();
+        let _ = LocalFree(HLOCAL(str_ptr.0 as *mut _));
+        s
+    }
+}
+
 fn build_pipe_security_descriptor() -> Option<OwnedSecurityDescriptor> {
-    for sddl in [CROSS_INTEGRITY_SDDL, FALLBACK_DACL_SDDL] {
-        let wide = to_wide_null(sddl);
+    let mut sddl_candidates = Vec::new();
+    if let Some(user_sid) = get_current_user_sid() {
+        // Protected DACL (D:P) strictly granting access to current user SID, SYSTEM (SY), and Built-in Administrators (BA).
+        // Mandatory label S:(ML;;NW;;;ME) allows medium integrity non-elevated callers to communicate with elevated server.
+        sddl_candidates.push(format!(
+            "D:P(A;;GA;;;BA)(A;;GA;;;SY)(A;;GA;;;{})S:(ML;;NW;;;ME)",
+            user_sid
+        ));
+        sddl_candidates.push(format!("D:P(A;;GA;;;BA)(A;;GA;;;SY)(A;;GA;;;{})", user_sid));
+    }
+    sddl_candidates.push("D:P(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)S:(ML;;NW;;;ME)".to_string());
+    sddl_candidates.push("D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;AU)".to_string());
+
+    for sddl in sddl_candidates {
+        let wide = to_wide_null(&sddl);
         let mut sd = PSECURITY_DESCRIPTOR::default();
         let ok = unsafe {
             ConvertStringSecurityDescriptorToSecurityDescriptorW(
@@ -156,12 +292,12 @@ impl PipeServer {
         let handle = unsafe {
             CreateNamedPipeW(
                 PCWSTR(wide_name.as_ptr()),
-                PIPE_ACCESS_DUPLEX,
-                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
+                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
                 PIPE_UNLIMITED_INSTANCES,
                 PIPE_BUFFER_SIZE,
                 PIPE_BUFFER_SIZE,
-                0,
+                DEFAULT_PIPE_TIMEOUT_MS,
                 sa_ptr.map(|p| p as *const _),
             )
         };
@@ -186,12 +322,42 @@ impl PipeServer {
     where
         F: FnMut(IpcRequest) -> IpcResponse,
     {
-        let connect_res = unsafe { ConnectNamedPipe(self.handle.0, None) };
-        if let Err(err) = connect_res {
-            let last = unsafe { GetLastError() };
-            if last != ERROR_PIPE_CONNECTED {
-                return Err(win32_err_to_io(err));
+        unsafe {
+            let event = CreateEventW(None, true, false, None)
+                .map_err(|e| io::Error::from_raw_os_error(e.code().0))?;
+            let mut ov = OVERLAPPED {
+                hEvent: event,
+                ..Default::default()
+            };
+
+            let connect_res = ConnectNamedPipe(self.handle.0, Some(&mut ov));
+            if let Err(err) = connect_res {
+                let last = GetLastError();
+                if last == ERROR_IO_PENDING {
+                    let wait_res = WaitForSingleObject(event, DEFAULT_PIPE_TIMEOUT_MS);
+                    if wait_res == WAIT_TIMEOUT {
+                        let _ = CancelIoEx(self.handle.0, Some(&ov));
+                        let _ = CloseHandle(event);
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "named pipe connection timed out",
+                        ));
+                    }
+                    if wait_res != WAIT_OBJECT_0 {
+                        let _ = CloseHandle(event);
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "named pipe connection wait failed",
+                        ));
+                    }
+                    let mut dummy = 0u32;
+                    let _ = GetOverlappedResult(self.handle.0, &ov, &mut dummy, false);
+                } else if last != ERROR_PIPE_CONNECTED {
+                    let _ = CloseHandle(event);
+                    return Err(win32_err_to_io(err));
+                }
             }
+            let _ = CloseHandle(event);
         }
 
         let result = (|| {
@@ -233,6 +399,11 @@ impl PipeClient {
 
     fn open_pipe_handle(&self, wide_name: &[u16]) -> io::Result<OwnedHandle> {
         for attempt in 0..3 {
+            let flags = FILE_ATTRIBUTE_NORMAL.0
+                | SECURITY_SQOS_PRESENT
+                | SECURITY_IDENTIFICATION
+                | FILE_FLAG_OVERLAPPED.0;
+
             let res = unsafe {
                 CreateFileW(
                     PCWSTR(wide_name.as_ptr()),
@@ -240,7 +411,7 @@ impl PipeClient {
                     FILE_SHARE_NONE,
                     None,
                     OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL,
+                    FILE_FLAGS_AND_ATTRIBUTES(flags),
                     None,
                 )
             };
@@ -252,7 +423,8 @@ impl PipeClient {
                     let os_err = win32_err_to_io(err);
                     if os_err.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) && attempt < 2 {
                         unsafe {
-                            let _ = WaitNamedPipeW(PCWSTR(wide_name.as_ptr()), 1000);
+                            let _ =
+                                WaitNamedPipeW(PCWSTR(wide_name.as_ptr()), DEFAULT_PIPE_TIMEOUT_MS);
                         }
                         continue;
                     }

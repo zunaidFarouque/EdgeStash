@@ -1,5 +1,5 @@
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -234,6 +234,104 @@ impl Default for EdgeStashConfig {
     }
 }
 
+/// Disallows Windows reserved device names: CON, PRN, AUX, NUL, COM1-COM9, LPT1-LPT9,
+/// COM¹-COM³, LPT¹-LPT³ (case-insensitive before the first dot), trailing periods or spaces,
+/// pure '.' or '..' stems, and names over 100 characters.
+pub fn validate_preset_name(name: &str) -> io::Result<()> {
+    if name.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Preset name cannot be empty",
+        ));
+    }
+    if name.len() > 100 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Preset name cannot exceed 100 characters",
+        ));
+    }
+    if name.ends_with('.') || name.ends_with(' ') || name.starts_with(' ') {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Preset name cannot start with a space or end with a period or space",
+        ));
+    }
+    if name == "." || name == ".." {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Preset name cannot be '.' or '..'",
+        ));
+    }
+
+    let invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
+    if name
+        .chars()
+        .any(|c| invalid_chars.contains(&c) || c.is_control())
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Preset name contains invalid characters (\\ / : * ? \" < > |)",
+        ));
+    }
+
+    let stem = name.split('.').next().unwrap_or(name);
+    let upper_stem = stem.to_uppercase();
+
+    const RESERVED_NAMES: &[&str] = &[
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+        "COM\u{00B9}",
+        "COM\u{00B2}",
+        "COM\u{00B3}",
+        "LPT\u{00B9}",
+        "LPT\u{00B2}",
+        "LPT\u{00B3}",
+    ];
+
+    if RESERVED_NAMES.iter().any(|&r| r == upper_stem) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Preset name '{name}' is a reserved Windows device name"),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Atomically writes content to `path` via a unique temp file and rename.
+pub fn write_atomic(path: &Path, content: &str) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let tmp_path = path.with_extension(format!("{}.tmp", std::process::id()));
+    {
+        let mut file = fs::File::create(&tmp_path)?;
+        file.write_all(content.as_bytes())?;
+        file.sync_all()?;
+    }
+    fs::rename(&tmp_path, path)
+}
+
 impl EdgeStashConfig {
     /// Returns whether drop zones are enabled for `edge`.
     pub fn is_drag_drop_edge_enabled(&self, edge: ScreenEdge) -> bool {
@@ -311,23 +409,7 @@ impl EdgeStashConfig {
 
     /// Saves the current configuration into the presets directory with the given preset name.
     pub fn save_as_named_preset(&self, name: &str) -> io::Result<PathBuf> {
-        let name = name.trim();
-        if name.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Preset name cannot be empty",
-            ));
-        }
-        let invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
-        if name
-            .chars()
-            .any(|c| invalid_chars.contains(&c) || c.is_control())
-        {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Preset name contains invalid characters (\\ / : * ? \" < > |)",
-            ));
-        }
+        validate_preset_name(name)?;
 
         let dir = Self::default_presets_dir().unwrap_or_else(|| PathBuf::from("presets"));
         fs::create_dir_all(&dir)?;
@@ -358,11 +440,8 @@ impl EdgeStashConfig {
 
     /// Saves the configuration as pretty TOML to `path`, creating parent directories if needed.
     pub fn save_to_at(&self, path: &Path) -> io::Result<()> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
         let content = self.to_toml_string().map_err(io::Error::other)?;
-        fs::write(path, content)
+        write_atomic(path, &content)
     }
 
     /// Loads config from `path`, creating a default config file if missing.

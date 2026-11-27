@@ -223,7 +223,11 @@ pub fn format_response(resp: &IpcResponse, json_output: bool) -> String {
         return serde_json::to_string_pretty(resp).unwrap_or_else(|_| "{}".to_string());
     }
     match resp {
-        IpcResponse::Pong { version, pid } => format!("pong v{version} (pid={pid})"),
+        IpcResponse::Pong {
+            version,
+            pid,
+            protocol_version,
+        } => format!("pong v{version} (pid={pid}, proto=v{protocol_version})"),
         IpcResponse::Ok { message } => message.clone(),
         IpcResponse::Error { code, message } => format!("error [{code:?}]: {message}"),
         IpcResponse::Status(st) => {

@@ -1,5 +1,5 @@
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use edgestash_ipc::types::{Rect, ScreenEdge};
@@ -15,6 +15,10 @@ pub struct CrashRecoveryEntry {
     pub original_rect: Rect,
     pub monitor_id: String,
     pub edge: ScreenEdge,
+    #[serde(default)]
+    pub pid: u32,
+    #[serde(default)]
+    pub process_name: String,
 }
 
 /// On-disk recovery manifest (`%LOCALAPPDATA%\EdgeStash\active_stashes.json`).
@@ -41,7 +45,7 @@ impl CrashManifest {
         }
     }
 
-    /// Atomically persists the recovery manifest to `path` via a temp sibling file.
+    /// Atomically persists the recovery manifest to `path` via a unique temp sibling file and atomic rename.
     pub fn save_atomic(&self, path: &Path) -> io::Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -49,10 +53,11 @@ impl CrashManifest {
         let payload = serde_json::to_vec_pretty(self)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
 
-        let tmp_path = path.with_extension("json.tmp");
-        fs::write(&tmp_path, payload)?;
-        if path.exists() {
-            let _ = fs::remove_file(path);
+        let tmp_path = path.with_extension(format!("{}.tmp", std::process::id()));
+        {
+            let mut file = fs::File::create(&tmp_path)?;
+            file.write_all(&payload)?;
+            file.sync_all()?;
         }
         fs::rename(&tmp_path, path)
     }

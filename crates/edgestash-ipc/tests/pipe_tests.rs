@@ -24,6 +24,7 @@ fn named_pipe_roundtrips_multiple_requests_across_threads() {
                     IpcRequest::Ping => IpcResponse::Pong {
                         version: format!("0.1.0-{i}"),
                         pid: std::process::id(),
+                        protocol_version: 1,
                     },
                     IpcRequest::ReloadConfig => IpcResponse::Ok {
                         message: "reloaded".to_string(),
@@ -42,7 +43,8 @@ fn named_pipe_roundtrips_multiple_requests_across_threads() {
         r1,
         IpcResponse::Pong {
             version: "0.1.0-0".to_string(),
-            pid: std::process::id()
+            pid: std::process::id(),
+            protocol_version: 1,
         }
     );
 

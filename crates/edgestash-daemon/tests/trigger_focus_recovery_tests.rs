@@ -398,6 +398,8 @@ fn crash_recovery_manifest_persists_and_restores_orphaned_windows() {
     let mut manifest = CrashManifest::default();
     manifest.entries.push(CrashRecoveryEntry {
         hwnd: 777,
+        pid: 1234,
+        process_name: "test.exe".to_string(),
         original_ex_style: 0x0004_0100,
         original_rect: Rect::new(200, 150, 900, 750),
         monitor_id: "MON-1".to_string(),
@@ -405,6 +407,8 @@ fn crash_recovery_manifest_persists_and_restores_orphaned_windows() {
     });
     manifest.entries.push(CrashRecoveryEntry {
         hwnd: 888, // Dead window no longer exists
+        pid: 5678,
+        process_name: "dead.exe".to_string(),
         original_ex_style: 0,
         original_rect: Rect::new(0, 0, 400, 400),
         monitor_id: "MON-1".to_string(),

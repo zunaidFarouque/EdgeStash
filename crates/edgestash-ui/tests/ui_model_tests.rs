@@ -212,6 +212,7 @@ fn refresh_daemon_and_dispatch_live_slot_actions_update_snapshot() {
         Ok(IpcResponse::Pong {
             version: "0.1.0".to_string(),
             pid: 4242,
+            protocol_version: 1,
         }),
         Ok(IpcResponse::Status(snapshot.clone())),
         Ok(IpcResponse::Ok {
