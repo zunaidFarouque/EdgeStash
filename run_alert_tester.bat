@@ -2,26 +2,35 @@
 setlocal
 cd /d "%~dp0"
 
+title EdgeStash Alert Tester
+
 echo ============================================================
 echo   EdgeStash - Window Notification Alert Simulator
 echo ============================================================
 echo.
 
-if exist "target\release\examples\alert_tester.exe" (
-    echo Launching alert_tester.exe...
-    start "" "target\release\examples\alert_tester.exe"
-    goto :done
+if not exist "target\release\examples\alert_tester.exe" (
+    echo Pre-built binary not found. Compiling release binary with cargo...
+    cargo build --example alert_tester --release
+    if errorlevel 1 (
+        echo.
+        echo [ERROR] Failed to compile alert_tester.
+        echo Please ensure Rust/cargo is installed and in your PATH.
+        echo.
+        pause
+        exit /b 1
+    )
+    echo Build succeeded!
+    echo.
 )
 
-echo Pre-built binary not found. Building with cargo...
-cargo build --example alert_tester --release
-if %ERRORLEVEL% equ 0 (
-    echo Build succeeded! Launching alert_tester.exe...
-    start "" "target\release\examples\alert_tester.exe"
-) else (
-    echo [ERROR] Failed to compile alert_tester. Please verify Rust is installed.
+echo Starting Alert Tester...
+"target\release\examples\alert_tester.exe"
+
+if errorlevel 1 (
+    echo.
+    echo [ERROR] alert_tester exited with code %ERRORLEVEL%.
     pause
 )
 
-:done
 endlocal

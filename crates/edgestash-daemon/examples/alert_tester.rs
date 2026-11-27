@@ -7,14 +7,15 @@ use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     BeginPaint, CreateSolidBrush, DT_CENTER, DT_VCENTER, DT_WORDBREAK, DeleteObject, DrawTextW,
     EndPaint, FillRect, InvalidateRect, PAINTSTRUCT, SetBkMode, SetTextColor, TRANSPARENT,
+    UpdateWindow,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DispatchMessageW, FLASHW_ALL, FLASHW_TIMERNOFG, FLASHWINFO,
     FlashWindowEx, GetClientRect, GetMessageW, IDC_ARROW, IDI_APPLICATION, KillTimer, LoadCursorW,
-    LoadIconW, MSG, PostQuitMessage, RegisterClassW, SetTimer, TranslateMessage, WM_CREATE,
-    WM_DESTROY, WM_KEYDOWN, WM_LBUTTONDOWN, WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
-    WS_VISIBLE,
+    LoadIconW, MSG, PostQuitMessage, RegisterClassW, SW_SHOW, SetTimer, ShowWindow,
+    TranslateMessage, WM_CREATE, WM_DESTROY, WM_KEYDOWN, WM_LBUTTONDOWN, WM_PAINT, WM_TIMER,
+    WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
 };
 use windows::core::w;
 
@@ -136,7 +137,17 @@ fn trigger_flash(hwnd: HWND, reason: &str) {
     }
 }
 
-fn main() -> windows::core::Result<()> {
+fn main() {
+    let result = run_app();
+    if let Err(e) = result {
+        eprintln!("[FATAL ERROR] {e:?}");
+        eprintln!("Press Enter to exit...");
+        let mut s = String::new();
+        let _ = std::io::stdin().read_line(&mut s);
+    }
+}
+
+fn run_app() -> windows::core::Result<()> {
     unsafe {
         let hinst = GetModuleHandleW(None)?;
         let cls_name = w!("EdgeStashAlertTesterClass");
@@ -145,26 +156,29 @@ fn main() -> windows::core::Result<()> {
             hInstance: hinst.into(),
             lpszClassName: cls_name,
             lpfnWndProc: Some(wnd_proc),
-            hCursor: LoadCursorW(None, IDC_ARROW)?,
-            hIcon: LoadIconW(None, IDI_APPLICATION)?,
+            hCursor: LoadCursorW(None, IDC_ARROW).unwrap_or_default(),
+            hIcon: LoadIconW(None, IDI_APPLICATION).unwrap_or_default(),
             ..Default::default()
         };
         let _ = RegisterClassW(&wc);
 
-        let _hwnd = CreateWindowExW(
+        let hwnd = CreateWindowExW(
             windows::Win32::UI::WindowsAndMessaging::WINDOW_EX_STYLE(0),
             cls_name,
             w!("EdgeStash Alert Tester (Messenger/Slack Simulator)"),
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             200,
             200,
-            480,
-            340,
+            500,
+            360,
             None,
             None,
             hinst,
             None,
         )?;
+
+        let _ = ShowWindow(hwnd, SW_SHOW);
+        let _ = UpdateWindow(hwnd);
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
