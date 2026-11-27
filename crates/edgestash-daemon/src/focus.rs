@@ -1,12 +1,14 @@
 use edgestash_ipc::config::EdgeStashConfig;
 use edgestash_ipc::types::{DockMode, Rect};
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT, WPARAM};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT};
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, SetFocus, VK_MENU, keybd_event,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     ASFW_ANY, AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetClassNameW, GetCursorPos,
     GetForegroundWindow, GetLastActivePopup, GetWindowRect, GetWindowThreadProcessId, IsWindow,
-    IsWindowVisible, SMTO_ABORTIFHUNG, SW_SHOW, SendMessageTimeoutW, SetForegroundWindow,
-    ShowWindow, WM_NULL,
+    IsWindowVisible, SW_SHOW, SetForegroundWindow, ShowWindow, SwitchToThisWindow,
 };
 
 use crate::platform::WindowHandle;
@@ -89,8 +91,8 @@ pub fn is_cursor_inside_with_margin(hwnd: HWND, margin_px: i32) -> bool {
     }
 }
 
-/// Reliably restores keyboard focus to `target_hwnd` without triggering Windows Foreground Lock
-/// or corrupting Alt-key state.
+/// Reliably restores keyboard focus to `target_hwnd` smoothly and directly,
+/// defeating Windows Foreground Lock and preventing taskbar flashing/blinking.
 pub fn force_restore_foreground_window(target_hwnd: HWND) {
     unsafe {
         if target_hwnd.0.is_null()
@@ -102,44 +104,50 @@ pub fn force_restore_foreground_window(target_hwnd: HWND) {
 
         let current_fg = GetForegroundWindow();
         if current_fg == target_hwnd {
-            return;
-        }
-
-        let _ = AllowSetForegroundWindow(ASFW_ANY);
-
-        // Try direct SetForegroundWindow first
-        let _ = BringWindowToTop(target_hwnd);
-        if SetForegroundWindow(target_hwnd).as_bool() {
-            return;
-        }
-
-        // Test target responsiveness before attempting thread input attachment to prevent hangs
-        let mut dummy = 0usize;
-        let responsive = SendMessageTimeoutW(
-            target_hwnd,
-            WM_NULL,
-            WPARAM(0),
-            LPARAM(0),
-            SMTO_ABORTIFHUNG,
-            50,
-            Some(&mut dummy),
-        );
-        if responsive.0 == 0 {
-            // Target window is hung or unresponsive; abort to avoid thread input deadlock
+            let _ = SetFocus(target_hwnd);
             return;
         }
 
         let current_thread = GetCurrentThreadId();
+        let fg_thread = if !current_fg.0.is_null() {
+            GetWindowThreadProcessId(current_fg, None)
+        } else {
+            0
+        };
         let target_thread = GetWindowThreadProcessId(target_hwnd, None);
 
-        if current_thread != target_thread && target_thread != 0 {
-            let attached = AttachThreadInput(current_thread, target_thread, true).as_bool();
-            let _ = BringWindowToTop(target_hwnd);
-            let _ = ShowWindow(target_hwnd, SW_SHOW);
-            let _ = SetForegroundWindow(target_hwnd);
-            if attached {
-                let _ = AttachThreadInput(current_thread, target_thread, false);
-            }
+        // 1. Attach input queues across calling thread, current foreground thread, and target thread
+        let attached_fg = if fg_thread != 0 && fg_thread != current_thread {
+            AttachThreadInput(current_thread, fg_thread, true).as_bool()
+        } else {
+            false
+        };
+        let attached_target = if target_thread != 0 && target_thread != current_thread {
+            AttachThreadInput(current_thread, target_thread, true).as_bool()
+        } else {
+            false
+        };
+
+        // 2. Grant unconditional foreground permission and pulse Alt key (VK_MENU)
+        // to reset Windows ForegroundLockTimeout and bypass taskbar blinking
+        let _ = AllowSetForegroundWindow(ASFW_ANY);
+        keybd_event(VK_MENU.0 as u8, 0, KEYBD_EVENT_FLAGS(0), 0);
+        keybd_event(VK_MENU.0 as u8, 0, KEYEVENTF_KEYUP, 0);
+
+        let _ = BringWindowToTop(target_hwnd);
+        let _ = ShowWindow(target_hwnd, SW_SHOW);
+        let success = SetForegroundWindow(target_hwnd).as_bool();
+        if !success {
+            SwitchToThisWindow(target_hwnd, true);
+        }
+        let _ = SetFocus(target_hwnd);
+
+        // 3. Detach input queues cleanly
+        if attached_target {
+            let _ = AttachThreadInput(current_thread, target_thread, false);
+        }
+        if attached_fg {
+            let _ = AttachThreadInput(current_thread, fg_thread, false);
         }
     }
 }
