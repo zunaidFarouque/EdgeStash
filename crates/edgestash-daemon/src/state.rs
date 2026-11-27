@@ -434,6 +434,11 @@ where
         Ok(())
     }
 
+    /// Resets the cached Explorer taskbar COM proxy (e.g. after Windows Explorer restarts).
+    pub fn reset_taskbar(&self) {
+        self.windows.reset_taskbar();
+    }
+
     /// Re-applies taskbar tab removal across all stashed windows (e.g. after Windows Explorer restarts).
     pub fn reapply_taskbar_deletion(&self) {
         let all_hwnds: Vec<WindowHandle> = self
@@ -582,8 +587,12 @@ where
 
     /// Handles a mouse/corner trigger on `(monitor_id, edge)`. Respects `disable_in_fullscreen`.
     pub fn on_edge_trigger(&mut self, monitor_id: &str, edge: ScreenEdge) -> bool {
-        if self.cfg.disable_in_fullscreen && self.windows.is_fullscreen_active() {
-            return false;
+        if self.cfg.disable_in_fullscreen {
+            let monitors = self.windows.enumerate_monitors();
+            let mon_rect = resolve_target_monitor(&monitors, Some(monitor_id)).map(|m| m.rect);
+            if self.windows.is_fullscreen_on_rect(mon_rect) {
+                return false;
+            }
         }
         let key = (monitor_id.to_string(), edge);
         let Some(idx) = self.active_visible_slot_index(&key) else {
@@ -674,8 +683,12 @@ where
         monitor_id: &str,
         zone: ChurnZoneId,
     ) -> Option<(String, ScreenEdge)> {
-        if self.cfg.disable_in_fullscreen && self.windows.is_fullscreen_active() {
-            return None;
+        if self.cfg.disable_in_fullscreen {
+            let monitors = self.windows.enumerate_monitors();
+            let mon_rect = resolve_target_monitor(&monitors, Some(monitor_id)).map(|m| m.rect);
+            if self.windows.is_fullscreen_on_rect(mon_rect) {
+                return None;
+            }
         }
         let (key, idx, mark_as_default) = self.resolve_churn_zone_target(monitor_id, zone)?;
         if mark_as_default && let Some(deck) = self.decks.get_mut(&key) {
@@ -697,8 +710,12 @@ where
 
     /// Opens the active slot when an OLE drag hovers onto the edge pill without stealing foreground focus mid-drag.
     pub fn on_drag_over_pill_trigger(&mut self, monitor_id: &str, edge: ScreenEdge) -> bool {
-        if self.cfg.disable_in_fullscreen && self.windows.is_fullscreen_active() {
-            return false;
+        if self.cfg.disable_in_fullscreen {
+            let monitors = self.windows.enumerate_monitors();
+            let mon_rect = resolve_target_monitor(&monitors, Some(monitor_id)).map(|m| m.rect);
+            if self.windows.is_fullscreen_on_rect(mon_rect) {
+                return false;
+            }
         }
         let key = (monitor_id.to_string(), edge);
         let Some(idx) = self.active_visible_slot_index(&key) else {

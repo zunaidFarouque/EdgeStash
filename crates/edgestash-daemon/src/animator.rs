@@ -8,9 +8,9 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GWL_EXSTYLE, GetClassNameW, GetWindowLongPtrW, GetWindowRect, HWND_TOPMOST, IsIconic,
-    LWA_ALPHA, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos,
-    ShowWindow, WS_EX_LAYERED,
+    LWA_ALPHA, SW_RESTORE, SWP_ASYNCWINDOWPOS, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes, SetWindowLongPtrW,
+    SetWindowPos, ShowWindow, WS_EX_LAYERED,
 };
 
 use crate::dwm::{BorderInsets, get_invisible_border_insets, set_window_cloaked};
@@ -202,7 +202,7 @@ pub fn animate_windows_transition(
                     pose.y,
                     0,
                     0,
-                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS,
                 );
             }
 
@@ -223,7 +223,7 @@ pub fn animate_windows_transition(
                     p.end_y,
                     0,
                     0,
-                    SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_FRAMECHANGED,
+                    SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                 );
                 refresh_anim_target(p.hwnd);
             }
@@ -239,7 +239,7 @@ pub fn animate_windows_transition(
                     p.end_y,
                     0,
                     0,
-                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS,
                 );
             }
         }

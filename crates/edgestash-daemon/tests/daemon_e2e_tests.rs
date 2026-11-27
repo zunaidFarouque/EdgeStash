@@ -11,11 +11,11 @@ use edgestash_ipc::types::{DockMode, ScreenEdge};
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::System::Threading::{GetCurrentProcessId, GetCurrentThreadId};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, DispatchMessageW, EnumWindows, GWL_EXSTYLE, GetClassNameW,
-    GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsWindowVisible, MSG,
-    PostMessageW, PostThreadMessageW, TranslateMessage, WM_APP, WM_LBUTTONUP, WM_MOUSEMOVE,
-    WM_MOUSEWHEEL, WM_QUIT, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_OVERLAPPEDWINDOW,
-    WindowFromPoint,
+    CreateWindowExW, DestroyWindow, DispatchMessageW, EnumWindows, GWL_EXSTYLE, GWLP_USERDATA,
+    GetClassNameW, GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId,
+    IsWindowVisible, MSG, PostMessageW, PostThreadMessageW, TranslateMessage, WM_APP, WM_LBUTTONUP,
+    WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_QUIT, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_OVERLAPPEDWINDOW, WindowFromPoint,
 };
 use windows::core::w;
 
@@ -247,17 +247,20 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
         .recv_timeout(Duration::from_secs(5))
         .expect("daemon signaled ready");
 
-    let mut msg_hwnds = find_own_windows_by_class("EdgeStashMessageWindow");
-    for _ in 0..15 {
+    let mut msg_hwnds = Vec::new();
+    for _ in 0..25 {
+        msg_hwnds = find_own_windows_by_class("EdgeStashMessageWindow")
+            .into_iter()
+            .filter(|&h| unsafe { GetWindowLongPtrW(h, GWLP_USERDATA) != 0 })
+            .collect();
         if !msg_hwnds.is_empty() {
             break;
         }
         thread::sleep(Duration::from_millis(40));
-        msg_hwnds = find_own_windows_by_class("EdgeStashMessageWindow");
     }
     assert!(
         !msg_hwnds.is_empty(),
-        "expected at least 1 daemon message window"
+        "expected at least 1 active daemon message window"
     );
     let msg_hwnd = *msg_hwnds.last().unwrap();
 
@@ -345,17 +348,28 @@ fn daemon_shows_edge_pill_opens_on_pill_hover_and_exits_cleanly_on_non_ipc_shutd
         .expect("reload EdgeHover config");
     assert!(matches!(reload_resp, IpcResponse::Ok { .. }));
 
-    let right_strip = find_own_windows_by_class("EdgeStashTriggerStrip")
-        .into_iter()
-        .find(|&h| {
-            let mut r = RECT::default();
-            let ok = unsafe { GetWindowRect(h, &mut r).is_ok() };
-            ok && (r.right - r.left) >= 1
-                && (r.right - r.left) <= 5
-                && (r.bottom - r.top) > 1
-                && r.left > 0
-        })
-        .expect("expected vertical Right trigger strip window");
+    let mut right_strip = None;
+    for _ in 0..25 {
+        right_strip = find_own_windows_by_class("EdgeStashTriggerStrip")
+            .into_iter()
+            .find(|&h| {
+                let mut r = RECT::default();
+                let owner = unsafe { GetWindowLongPtrW(h, GWLP_USERDATA) };
+                let ok =
+                    unsafe { IsWindowVisible(h).as_bool() && GetWindowRect(h, &mut r).is_ok() };
+                owner == msg_hwnd.0 as isize
+                    && ok
+                    && (r.right - r.left) >= 1
+                    && (r.right - r.left) <= 5
+                    && (r.bottom - r.top) > 1
+                    && r.left > 0
+            });
+        if right_strip.is_some() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(40));
+    }
+    let right_strip = right_strip.expect("expected vertical Right trigger strip window");
     let mut opened = false;
     for _ in 0..30 {
         unsafe {

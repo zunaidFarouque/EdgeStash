@@ -196,6 +196,10 @@ pub trait WindowSystem {
 
     fn enumerate_monitors(&self) -> Vec<MonitorInfo>;
     fn is_fullscreen_active(&self) -> bool;
+    fn is_fullscreen_on_rect(&self, _rect: Option<Rect>) -> bool {
+        self.is_fullscreen_active()
+    }
+    fn reset_taskbar(&self) {}
 }
 
 /// Platform port for Virtual Desktop operations (`IVirtualDesktopManager`).

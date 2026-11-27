@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::mem::size_of;
 
 use edgestash_ipc::types::{AnimationStyle, Rect, ScreenEdge};
-use windows::Win32::Foundation::{BOOL, CloseHandle, HWND, LPARAM, POINT, RECT, WPARAM};
+use windows::Win32::Foundation::{BOOL, CloseHandle, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MONITORINFO,
     MONITORINFOEXW, MonitorFromWindow, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
@@ -15,20 +15,18 @@ use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
 };
 use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
-use windows::Win32::UI::Shell::{
-    ITaskbarList, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
-    SHQueryUserNotificationState, TaskbarList,
-};
+use windows::Win32::UI::Shell::{ITaskbarList, TaskbarList};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, FindWindowExW, GA_ROOT, GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE,
-    GetAncestor, GetClassNameW, GetCursorPos, GetDesktopWindow, GetForegroundWindow, GetParent,
-    GetShellWindow, GetTopWindow, GetWindowLongPtrW, GetWindowPlacement, GetWindowRect,
-    GetWindowThreadProcessId, HWND_NOTOPMOST, HWND_TOPMOST, IsIconic, IsWindow, IsWindowVisible,
-    IsZoomed, MONITORINFOF_PRIMARY, PostMessageW, SC_MAXIMIZE, SC_MINIMIZE, SMTO_ABORTIFHUNG,
-    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageTimeoutW, SetWindowLongPtrW,
-    SetWindowPlacement, SetWindowPos, ShowWindow, WINDOWPLACEMENT, WM_CLOSE, WM_GETTEXT,
-    WM_SYSCOMMAND, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, FindWindowExW, GA_ROOT, GA_ROOTOWNER,
+    GWL_EXSTYLE, GWL_STYLE, GWLP_USERDATA, GetAncestor, GetClassNameW, GetCursorPos,
+    GetDesktopWindow, GetForegroundWindow, GetParent, GetShellWindow, GetTopWindow,
+    GetWindowLongPtrW, GetWindowPlacement, GetWindowRect, GetWindowThreadProcessId, HWND_NOTOPMOST,
+    HWND_TOPMOST, IsIconic, IsWindow, IsWindowVisible, IsZoomed, MONITORINFOF_PRIMARY,
+    PostMessageW, RegisterClassExW, SC_MAXIMIZE, SC_MINIMIZE, SMTO_ABORTIFHUNG, SW_MAXIMIZE,
+    SW_MINIMIZE, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOMOVE,
+    SWP_NOSIZE, SWP_NOZORDER, SendMessageTimeoutW, SetWindowLongPtrW, SetWindowPlacement,
+    SetWindowPos, ShowWindow, WINDOWPLACEMENT, WM_CLOSE, WM_GETTEXT, WM_SYSCOMMAND, WNDCLASSEXW,
+    WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 use windows::core::{GUID, PCWSTR, Result, w};
 
@@ -622,16 +620,12 @@ impl WindowSystem for Win32WindowSystem {
         monitors
     }
 
-    fn is_fullscreen_active(&self) -> bool {
-        unsafe {
-            if let Ok(quns) = SHQueryUserNotificationState()
-                && (quns == QUNS_BUSY
-                    || quns == QUNS_RUNNING_D3D_FULL_SCREEN
-                    || quns == QUNS_PRESENTATION_MODE)
-            {
-                return true;
-            }
+    fn reset_taskbar(&self) {
+        *self.taskbar.borrow_mut() = None;
+    }
 
+    fn is_fullscreen_on_rect(&self, target_rect: Option<Rect>) -> bool {
+        unsafe {
             let fg = GetForegroundWindow();
             if fg.0.is_null() || fg == GetShellWindow() || fg == GetDesktopWindow() {
                 return false;
@@ -662,13 +656,27 @@ impl WindowSystem for Win32WindowSystem {
             if GetMonitorInfoW(hmon, &mut mi).as_bool() {
                 let mon_r: Rect = mi.rcMonitor.into();
                 let win_r: Rect = wr.into();
-                return win_r.left <= mon_r.left
+                let is_full = win_r.left <= mon_r.left
                     && win_r.top <= mon_r.top
                     && win_r.right >= mon_r.right
                     && win_r.bottom >= mon_r.bottom;
+                if !is_full {
+                    return false;
+                }
+                if let Some(target) = target_rect {
+                    return !(mon_r.right <= target.left
+                        || mon_r.left >= target.right
+                        || mon_r.bottom <= target.top
+                        || mon_r.top >= target.bottom);
+                }
+                return true;
             }
             false
         }
+    }
+
+    fn is_fullscreen_active(&self) -> bool {
+        self.is_fullscreen_on_rect(None)
     }
 }
 
@@ -705,6 +713,40 @@ impl VirtualDesktopApi for Win32VirtualDesktop {
     }
 }
 
+unsafe extern "system" fn appbar_helper_wndproc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if msg == crate::appbar::WM_APP_APPBAR {
+        let parent = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
+        if parent != 0 {
+            unsafe {
+                let _ = PostMessageW(HWND(parent as *mut _), msg, wparam, lparam);
+            }
+        }
+        return LRESULT(0);
+    }
+    unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+}
+
+fn ensure_appbar_class_registered(inst: windows::Win32::Foundation::HINSTANCE) {
+    static REGISTERED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    REGISTERED.get_or_init(|| {
+        let wc = WNDCLASSEXW {
+            cbSize: size_of::<WNDCLASSEXW>() as u32,
+            lpfnWndProc: Some(appbar_helper_wndproc),
+            hInstance: inst,
+            lpszClassName: w!("EdgeStashAppBarHelperClass"),
+            ..Default::default()
+        };
+        unsafe {
+            let _ = RegisterClassExW(&wc);
+        }
+    });
+}
+
 /// Real Win32 [`AppBarApi`] implementation assigning one AppBar helper HWND per `(monitor_id, edge)`.
 pub struct Win32AppBar {
     helpers: RefCell<HashMap<(String, ScreenEdge), HWND>>,
@@ -732,11 +774,12 @@ impl Win32AppBar {
         }
         let hinst: Option<windows::Win32::Foundation::HINSTANCE> =
             unsafe { GetModuleHandleW(None).ok().map(|h| h.into()) };
-        if let Some(inst) = hinst
-            && let Ok(hwnd) = unsafe {
+        if let Some(inst) = hinst {
+            ensure_appbar_class_registered(inst);
+            if let Ok(hwnd) = unsafe {
                 CreateWindowExW(
                     WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-                    w!("Static"),
+                    w!("EdgeStashAppBarHelperClass"),
                     w!("EdgeStashAppBarHelper"),
                     WS_POPUP,
                     -32000,
@@ -748,10 +791,13 @@ impl Win32AppBar {
                     inst,
                     None,
                 )
+            } {
+                unsafe {
+                    let _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, self.fallback_hwnd.0 as isize);
+                }
+                self.helpers.borrow_mut().insert(key, hwnd);
+                return hwnd;
             }
-        {
-            self.helpers.borrow_mut().insert(key, hwnd);
-            return hwnd;
         }
         self.fallback_hwnd
     }

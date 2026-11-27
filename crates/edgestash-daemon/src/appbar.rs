@@ -7,6 +7,8 @@ use windows::Win32::UI::Shell::{
     APPBARDATA, SHAppBarMessage,
 };
 
+pub const WM_APP_APPBAR: u32 = 0x8000 + 17; // WM_APP + 17
+
 /// Registers, updates, or removes an OS Application Desktop Toolbar (`SHAppBarMessage`)
 /// so Windows shrinks the desktop work area and pushes maximized/snapped windows aside.
 /// Returns the final desktop rectangle reserved for this AppBar when `enable` is `true`.
@@ -21,6 +23,7 @@ pub fn register_or_update_native_dock(
         let mut abd = APPBARDATA {
             cbSize: size_of::<APPBARDATA>() as u32,
             hWnd: helper_hwnd,
+            uCallbackMessage: WM_APP_APPBAR,
             ..Default::default()
         };
 

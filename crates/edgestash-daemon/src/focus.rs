@@ -1,14 +1,12 @@
 use edgestash_ipc::config::EdgeStashConfig;
 use edgestash_ipc::types::{DockMode, Rect};
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, SetFocus, VK_MENU, keybd_event,
-};
 use windows::Win32::UI::WindowsAndMessaging::{
     ASFW_ANY, AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetClassNameW, GetCursorPos,
     GetForegroundWindow, GetLastActivePopup, GetWindowRect, GetWindowThreadProcessId, IsWindow,
-    IsWindowVisible, SW_SHOW, SetForegroundWindow, ShowWindow, SwitchToThisWindow,
+    IsWindowVisible, SMTO_ABORTIFHUNG, SW_SHOW, SendMessageTimeoutW, SetForegroundWindow,
+    ShowWindow, WM_NULL,
 };
 
 use crate::platform::WindowHandle;
@@ -91,56 +89,57 @@ pub fn is_cursor_inside_with_margin(hwnd: HWND, margin_px: i32) -> bool {
     }
 }
 
-/// Reliably restores keyboard focus to `target_hwnd` without triggering Windows Foreground Lock.
+/// Reliably restores keyboard focus to `target_hwnd` without triggering Windows Foreground Lock
+/// or corrupting Alt-key state.
 pub fn force_restore_foreground_window(target_hwnd: HWND) {
     unsafe {
-        if !IsWindow(target_hwnd).as_bool() || !IsWindowVisible(target_hwnd).as_bool() {
+        if target_hwnd.0.is_null()
+            || !IsWindow(target_hwnd).as_bool()
+            || !IsWindowVisible(target_hwnd).as_bool()
+        {
             return;
         }
 
         let current_fg = GetForegroundWindow();
         if current_fg == target_hwnd {
-            let _ = SetFocus(target_hwnd);
             return;
         }
 
-        let fg_thread = GetWindowThreadProcessId(current_fg, None);
-        let target_thread = GetWindowThreadProcessId(target_hwnd, None);
-        let current_thread = GetCurrentThreadId();
-
-        // 1. Attach input queues across calling thread, current foreground thread, and target thread
-        if fg_thread != 0 && target_thread != 0 && fg_thread != target_thread {
-            let _ = AttachThreadInput(fg_thread, target_thread, true);
-        }
-        if fg_thread != 0 && fg_thread != current_thread {
-            let _ = AttachThreadInput(current_thread, fg_thread, true);
-        }
-        if target_thread != 0 && target_thread != current_thread {
-            let _ = AttachThreadInput(current_thread, target_thread, true);
-        }
-
-        // 2. Grant unconditional foreground permission and pulse Alt key (VK_MENU) to defeat Windows Foreground Lock
         let _ = AllowSetForegroundWindow(ASFW_ANY);
-        keybd_event(VK_MENU.0 as u8, 0, KEYBD_EVENT_FLAGS(0), 0);
-        keybd_event(VK_MENU.0 as u8, 0, KEYEVENTF_KEYUP, 0);
 
+        // Try direct SetForegroundWindow first
         let _ = BringWindowToTop(target_hwnd);
-        let _ = ShowWindow(target_hwnd, SW_SHOW);
-        let success = SetForegroundWindow(target_hwnd).as_bool();
-        if !success {
-            SwitchToThisWindow(target_hwnd, true);
+        if SetForegroundWindow(target_hwnd).as_bool() {
+            return;
         }
-        let _ = SetFocus(target_hwnd);
 
-        // 3. Detach thread input queues cleanly
-        if fg_thread != 0 && target_thread != 0 && fg_thread != target_thread {
-            let _ = AttachThreadInput(fg_thread, target_thread, false);
+        // Test target responsiveness before attempting thread input attachment to prevent hangs
+        let mut dummy = 0usize;
+        let responsive = SendMessageTimeoutW(
+            target_hwnd,
+            WM_NULL,
+            WPARAM(0),
+            LPARAM(0),
+            SMTO_ABORTIFHUNG,
+            50,
+            Some(&mut dummy),
+        );
+        if responsive.0 == 0 {
+            // Target window is hung or unresponsive; abort to avoid thread input deadlock
+            return;
         }
-        if fg_thread != 0 && fg_thread != current_thread {
-            let _ = AttachThreadInput(current_thread, fg_thread, false);
-        }
-        if target_thread != 0 && target_thread != current_thread {
-            let _ = AttachThreadInput(current_thread, target_thread, false);
+
+        let current_thread = GetCurrentThreadId();
+        let target_thread = GetWindowThreadProcessId(target_hwnd, None);
+
+        if current_thread != target_thread && target_thread != 0 {
+            let attached = AttachThreadInput(current_thread, target_thread, true).as_bool();
+            let _ = BringWindowToTop(target_hwnd);
+            let _ = ShowWindow(target_hwnd, SW_SHOW);
+            let _ = SetForegroundWindow(target_hwnd);
+            if attached {
+                let _ = AttachThreadInput(current_thread, target_thread, false);
+            }
         }
     }
 }

@@ -55,6 +55,8 @@ pub struct EdgeStashApp {
     pub show_save_preset_dialog: bool,
     pub preset_name_input: String,
     pub preset_save_error: Option<String>,
+    cached_presets: Vec<(String, std::path::PathBuf)>,
+    cached_presets_refreshed_at: Instant,
 }
 
 impl EdgeStashApp {
@@ -170,6 +172,8 @@ impl EdgeStashApp {
             show_save_preset_dialog: false,
             preset_name_input: String::new(),
             preset_save_error: None,
+            cached_presets: EdgeStashConfig::list_presets(),
+            cached_presets_refreshed_at: Instant::now(),
         }
     }
 
@@ -271,6 +275,16 @@ impl EdgeStashApp {
         }
     }
 
+    fn get_presets(&mut self) -> Vec<(String, std::path::PathBuf)> {
+        if self.cached_presets.is_empty()
+            || self.cached_presets_refreshed_at.elapsed() >= Duration::from_secs(5)
+        {
+            self.cached_presets = EdgeStashConfig::list_presets();
+            self.cached_presets_refreshed_at = Instant::now();
+        }
+        self.cached_presets.clone()
+    }
+
     fn render_top_header(&mut self, ctx: &egui::Context, p: &Palette) {
         egui::TopBottomPanel::top("edgestash_header")
             .frame(
@@ -315,7 +329,7 @@ impl EdgeStashApp {
                             self.preset_save_error = None;
                         }
 
-                        let presets = EdgeStashConfig::list_presets();
+                        let presets = self.get_presets();
                         if !presets.is_empty() {
                             egui::ComboBox::from_id_salt("top_presets_menu")
                                 .selected_text("Presets ▾")
@@ -481,6 +495,8 @@ impl EdgeStashApp {
                                             saved_path.display()
                                         ),
                                     });
+                                    self.cached_presets = EdgeStashConfig::list_presets();
+                                    self.cached_presets_refreshed_at = Instant::now();
                                     close_dialog = true;
                                 }
                                 Err(err) => {
@@ -2082,6 +2098,12 @@ impl EdgeStashApp {
 
 impl eframe::App for EdgeStashApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if ctx.input(|i| i.viewport().minimized == Some(true)) {
+            thread::sleep(Duration::from_millis(100));
+            ctx.request_repaint_after(Duration::from_millis(200));
+            return;
+        }
+
         self.drain_worker_events();
         self.handle_hotkey_capture_input(ctx);
 

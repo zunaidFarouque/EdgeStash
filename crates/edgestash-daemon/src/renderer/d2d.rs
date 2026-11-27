@@ -49,6 +49,15 @@ use windows::core::{Interface, PCWSTR, Result, w};
 
 use crate::geometry::{HeaderButtonKind, header_button_rects};
 
+/// Tests whether a Direct2D / DXGI error represents GPU device removal or target recreation necessity.
+pub fn is_device_lost_error(err: &windows::core::Error) -> bool {
+    let code = err.code().0;
+    code == 0x8899000C_u32 as i32 // D2DERR_RECREATE_TARGET
+        || code == 0x887A0005_u32 as i32 // DXGI_ERROR_DEVICE_REMOVED
+        || code == 0x887A0007_u32 as i32 // DXGI_ERROR_DEVICE_RESET
+        || code == 0x887A0006_u32 as i32 // DXGI_ERROR_DEVICE_HUNG
+}
+
 /// Premultiplied BGRA bitmap extracted from a Win32 `HICON`.
 #[derive(Debug, Clone)]
 pub struct IconPixels {
@@ -2186,13 +2195,21 @@ pub fn extract_window_icon_bgra(hwnd: HWND) -> Option<IconPixels> {
             return None;
         }
 
-        // Premultiply alpha for Direct2D `D2D1_ALPHA_MODE_PREMULTIPLIED`
-        for px in pixels.as_chunks_mut::<4>().0 {
-            let a = px[3] as u16;
-            if a < 255 {
-                px[0] = ((px[0] as u16 * a) / 255) as u8;
-                px[1] = ((px[1] as u16 * a) / 255) as u8;
-                px[2] = ((px[2] as u16 * a) / 255) as u8;
+        // Premultiply alpha for Direct2D `D2D1_ALPHA_MODE_PREMULTIPLIED`.
+        // Legacy Win32 icons without alpha channel have all 0-alpha bytes; force them to opaque.
+        let has_any_alpha = pixels.as_chunks::<4>().0.iter().any(|px| px[3] > 0);
+        if !has_any_alpha {
+            for px in pixels.as_chunks_mut::<4>().0 {
+                px[3] = 255;
+            }
+        } else {
+            for px in pixels.as_chunks_mut::<4>().0 {
+                let a = px[3] as u16;
+                if a < 255 {
+                    px[0] = ((px[0] as u16 * a) / 255) as u8;
+                    px[1] = ((px[1] as u16 * a) / 255) as u8;
+                    px[2] = ((px[2] as u16 * a) / 255) as u8;
+                }
             }
         }
 

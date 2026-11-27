@@ -52,8 +52,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DeregisterShellHookWindow, DestroyMenu, DestroyWindow,
     DispatchMessageW, EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
     EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MOVESIZEEND,
-    EVENT_SYSTEM_MOVESIZESTART, FindWindowW, GA_ROOT, GWL_EXSTYLE, GWLP_USERDATA, GetAncestor,
-    GetCursorPos, GetMessageW, GetWindowLongPtrW, GetWindowRect, HHOOK, HWND_NOTOPMOST,
+    EVENT_SYSTEM_MOVESIZESTART, FindWindowW, GWL_EXSTYLE, GWLP_USERDATA, GetCursorPos,
+    GetForegroundWindow, GetMessageW, GetWindowLongPtrW, GetWindowRect, HHOOK, HWND_NOTOPMOST,
     HWND_TOPMOST, IDC_ARROW, IDI_APPLICATION, IsZoomed, KillTimer, LoadCursorW, LoadIconW,
     MF_CHECKED, MF_SEPARATOR, MF_STRING, MSG, MSGFLT_ALLOW, MSLLHOOKSTRUCT, OBJID_WINDOW,
     PM_NOREMOVE, PeekMessageW, PostMessageW, PostQuitMessage, RegisterClassW,
@@ -65,7 +65,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_DISPLAYCHANGE, WM_ENDSESSION, WM_HOTKEY, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP,
     WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_NCCREATE, WM_NCLBUTTONDOWN, WM_QUERYENDSESSION, WM_RBUTTONUP,
     WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_NOREDIRECTIONBITMAP,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WindowFromPoint,
+    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 use windows::core::{PCWSTR, Result as WinResult, implement, w};
 
@@ -81,7 +81,7 @@ use crate::platform::{
 use crate::renderer::DimScrimFade;
 use crate::renderer::d2d::{
     CloseAnimFrame, D2DGraphicsContext, D2DWindowSurface, DrawerHeaderVisual, IconPixels,
-    PillSlotVisual, extract_window_icon_bgra,
+    PillSlotVisual, extract_window_icon_bgra, is_device_lost_error,
 };
 use crate::state::EdgeStashEngine;
 use crate::trigger::{
@@ -110,6 +110,7 @@ const WM_APP_WIN_LOCATIONCHANGE: u32 = WM_APP + 13;
 const WM_APP_GLOBAL_MOUSEMOVE: u32 = WM_APP + 14;
 const WM_APP_EDGE_WHEEL: u32 = WM_APP + 15;
 const WM_APP_WIN_MINIMIZE: u32 = WM_APP + 16;
+const WM_APP_APPBAR: u32 = WM_APP + 17;
 
 const TIMER_DISMISS_CHECK: usize = 1;
 const TIMER_EDGE_HOVER: usize = 2;
@@ -196,7 +197,8 @@ fn is_drag_modifier_held(modifier: DragDropModifierKey) -> bool {
 static EMERGENCY_MANIFEST_PATH: OnceLock<PathBuf> = OnceLock::new();
 static SAFETY_HOOKS_INSTALLED: OnceLock<()> = OnceLock::new();
 static GLOBAL_MSG_HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
-static DRAG_WHEEL_HOOK: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+static OLE_DRAG_WHEEL_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 static GLOBAL_MOUSE_HOOK: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
 static WM_SHELLHOOK_MSG: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static WM_TASKBAR_CREATED_MSG: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -290,6 +292,17 @@ unsafe extern "system" fn global_mouse_hook_proc(
             } else if msg == WM_MOUSEWHEEL {
                 let delta = ((info.mouseData >> 16) as u16) as i16;
                 if delta != 0 {
+                    if OLE_DRAG_WHEEL_ACTIVE.load(Ordering::Acquire) {
+                        unsafe {
+                            let _ = PostMessageW(
+                                HWND(msg_raw as *mut _),
+                                WM_APP_DRAG_WHEEL,
+                                WPARAM((delta as u16) as usize),
+                                LPARAM(0),
+                            );
+                        }
+                        return LRESULT(1);
+                    }
                     let captured = LL_MOUSE_STATE.with(|cell| {
                         let st = cell.borrow();
                         st.wheel_capture_zones
@@ -311,44 +324,33 @@ unsafe extern "system" fn global_mouse_hook_proc(
                     }
                 }
             } else if msg == WM_LBUTTONDOWN || msg == WM_NCLBUTTONDOWN {
-                let hit_stashed = OPEN_STASHED_HWNDS.with(|cell| {
+                OPEN_STASHED_HWNDS.with(|cell| {
                     let set = cell.borrow();
                     if set.is_empty() {
-                        return None;
+                        return;
                     }
-                    unsafe {
-                        let target = WindowFromPoint(info.pt);
-                        if target.0.is_null() {
-                            return None;
-                        }
-                        let root = GetAncestor(target, GA_ROOT);
-                        if set.contains(&(root.0 as isize)) {
-                            Some(root)
-                        } else {
-                            None
-                        }
-                    }
-                });
-                if let Some(root_hwnd) = hit_stashed {
-                    unsafe {
-                        let mut wr = RECT::default();
-                        if GetWindowRect(root_hwnd, &mut wr).is_ok() {
-                            let in_caption = info.pt.y >= wr.top - 8
-                                && info.pt.y <= wr.top + 50
-                                && info.pt.x >= wr.left
-                                && info.pt.x <= wr.right;
-                            if in_caption {
-                                let now_ms = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .map(|d| d.as_millis() as u64)
-                                    .unwrap_or(0);
-                                LAST_MINIMIZE_CLICK_HWND
-                                    .store(root_hwnd.0 as isize, Ordering::Release);
-                                LAST_MINIMIZE_CLICK_TIME.store(now_ms, Ordering::Release);
+                    for &raw_hwnd in set.iter() {
+                        let root_hwnd = HWND(raw_hwnd as *mut _);
+                        unsafe {
+                            let mut wr = RECT::default();
+                            if GetWindowRect(root_hwnd, &mut wr).is_ok() {
+                                let in_caption = info.pt.y >= wr.top - 8
+                                    && info.pt.y <= wr.top + 50
+                                    && info.pt.x >= wr.left
+                                    && info.pt.x <= wr.right;
+                                if in_caption {
+                                    let now_ms = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .map(|d| d.as_millis() as u64)
+                                        .unwrap_or(0);
+                                    LAST_MINIMIZE_CLICK_HWND.store(raw_hwnd, Ordering::Release);
+                                    LAST_MINIMIZE_CLICK_TIME.store(now_ms, Ordering::Release);
+                                    break;
+                                }
                             }
                         }
                     }
-                }
+                });
             }
         }
     }
@@ -381,52 +383,12 @@ fn uninstall_global_mouse_hook() {
     }
 }
 
-unsafe extern "system" fn drag_wheel_hook_proc(
-    code: i32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
-    if code >= 0 && wparam.0 as u32 == WM_MOUSEWHEEL && lparam.0 != 0 {
-        let info = unsafe { &*(lparam.0 as *const MSLLHOOKSTRUCT) };
-        let delta = ((info.mouseData >> 16) as u16) as i16;
-        let msg_raw = GLOBAL_MSG_HWND.load(Ordering::Acquire);
-        if msg_raw != 0 && delta != 0 {
-            unsafe {
-                let _ = PostMessageW(
-                    HWND(msg_raw as *mut _),
-                    WM_APP_DRAG_WHEEL,
-                    WPARAM((delta as u16) as usize),
-                    LPARAM(0),
-                );
-            }
-        }
-    }
-    unsafe { CallNextHookEx(None, code, wparam, lparam) }
-}
-
 fn install_drag_wheel_hook() {
-    if DRAG_WHEEL_HOOK.load(Ordering::Acquire) != 0 {
-        return;
-    }
-    if let Ok(hook) = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(drag_wheel_hook_proc), None, 0) }
-        && !hook.is_invalid()
-    {
-        let prev = DRAG_WHEEL_HOOK.swap(hook.0 as isize, Ordering::AcqRel);
-        if prev != 0 {
-            unsafe {
-                let _ = UnhookWindowsHookEx(HHOOK(prev as *mut _));
-            }
-        }
-    }
+    OLE_DRAG_WHEEL_ACTIVE.store(true, Ordering::Release);
 }
 
 fn uninstall_drag_wheel_hook() {
-    let raw = DRAG_WHEEL_HOOK.swap(0, Ordering::AcqRel);
-    if raw != 0 {
-        unsafe {
-            let _ = UnhookWindowsHookEx(HHOOK(raw as *mut _));
-        }
-    }
+    OLE_DRAG_WHEEL_ACTIVE.store(false, Ordering::Release);
 }
 
 /// OLE drop-target attached to each visible edge pill HWND so dragging items
@@ -864,6 +826,12 @@ impl OverlayWindowState {
                 let _ = DestroyWindow(hwnd);
             }
         }
+    }
+
+    pub fn recover_device_loss(&mut self) -> bool {
+        self.destroy_all_overlays();
+        self.d2d = D2DGraphicsContext::new().ok();
+        self.d2d.is_some()
     }
 
     fn all_overlay_hwnds(&self) -> Vec<WindowHandle> {
@@ -1625,10 +1593,7 @@ impl VisualOverlayApi for SharedOverlayBridge {
                         }
                     }
                 }
-                let d2d_ctx = st.d2d.clone();
-                if let (Some((hwnd, surface, rect)), Some(ctx)) = (&mut st.drag_preview, &d2d_ctx) {
-                    let size_changed =
-                        rect.width() != band_rect.width() || rect.height() != band_rect.height();
+                if let Some((hwnd, surface, rect)) = &mut st.drag_preview {
                     *rect = band_rect;
                     unsafe {
                         let _ = SetWindowPos(
@@ -1642,16 +1607,7 @@ impl VisualOverlayApi for SharedOverlayBridge {
                         );
                         let _ = ShowWindow(*hwnd, SW_SHOWNOACTIVATE);
                     }
-                    if size_changed
-                        && let Ok(new_surface) = ctx.create_window_surface(
-                            *hwnd,
-                            band_rect.width().max(1) as u32,
-                            band_rect.height().max(1) as u32,
-                        )
-                    {
-                        *surface = new_surface;
-                    }
-                    let _ = surface.render_drag_preview(
+                    let render_res = surface.render_drag_preview(
                         band_rect.width().max(1) as u32,
                         band_rect.height().max(1) as u32,
                         edge,
@@ -1659,6 +1615,11 @@ impl VisualOverlayApi for SharedOverlayBridge {
                         corner_span_px,
                         active_target.as_ref(),
                     );
+                    if let Err(e) = render_res
+                        && is_device_lost_error(&e)
+                    {
+                        st.recover_device_loss();
+                    }
                 }
             }
             PillOverlayEvent::HideDragPreview => {
@@ -1950,6 +1911,7 @@ struct DaemonController {
     edge_triggers_enabled: bool,
     tray_active: bool,
     tray_retries_remaining: u32,
+    attention_pulse_count: u32,
     should_quit: bool,
 }
 
@@ -3356,7 +3318,13 @@ unsafe extern "system" fn main_wnd_proc(
             LRESULT(0)
         }
         WM_APP_WIN_FOREGROUND => {
-            let fg = WindowHandle(wparam.0 as isize);
+            let actual_fg = unsafe { GetForegroundWindow() };
+            let fg_raw = if !actual_fg.0.is_null() {
+                actual_fg.0 as isize
+            } else {
+                wparam.0 as isize
+            };
+            let fg = WindowHandle(fg_raw);
             ctrl.engine
                 .on_foreground_changed_at(fg, ctrl.clock.now_ms());
             ctrl.update_dismiss_timer();
@@ -3527,6 +3495,14 @@ unsafe extern "system" fn main_wnd_proc(
             ctrl.handle_ole_drag_wheel(delta);
             LRESULT(0)
         }
+        WM_APP_APPBAR => {
+            let notify_code = wparam.0 as u32;
+            if notify_code == 1 {
+                // ABN_POSCHANGED = 1: Explorer or taskbar geometry shifted
+                ctrl.engine.on_monitors_changed();
+            }
+            LRESULT(0)
+        }
         WM_DISPLAYCHANGE => {
             let monitors = Win32WindowSystem::new().enumerate_monitors();
             let enable_triggers = ctrl.edge_triggers_enabled;
@@ -3677,6 +3653,9 @@ unsafe extern "system" fn main_wnd_proc(
                     let mut ov = ctrl.overlays.borrow_mut();
                     let has_any_attention =
                         ov.desired_pills.values().any(|p| p.attention_count > 0);
+                    ctrl.attention_pulse_count = ctrl.attention_pulse_count.saturating_add(1);
+                    // 90 ticks @ 33ms = ~3.0s of active pulsing, then rests as a static amber indicator at 0.0% CPU
+                    let should_stop = !has_any_attention || ctrl.attention_pulse_count >= 90;
                     if has_any_attention {
                         let keys: Vec<(String, ScreenEdge)> = ov
                             .desired_pills
@@ -3692,7 +3671,8 @@ unsafe extern "system" fn main_wnd_proc(
                         for (mon_id, edge) in keys {
                             ov.sync_pill(&mon_id, edge);
                         }
-                    } else {
+                    }
+                    if should_stop {
                         unsafe {
                             let _ = KillTimer(ctrl.msg_hwnd, TIMER_ATTENTION_PULSE);
                         }
@@ -3724,6 +3704,7 @@ unsafe extern "system" fn main_wnd_proc(
                     .engine
                     .handle_window_attention(WindowHandle::from_hwnd(target_hwnd), now)
                 {
+                    ctrl.attention_pulse_count = 0;
                     unsafe {
                         let _ = SetTimer(ctrl.msg_hwnd, TIMER_ATTENTION_PULSE, 33, None);
                     }
@@ -3742,6 +3723,7 @@ unsafe extern "system" fn main_wnd_proc(
                     ctrl.tray_active = true;
                 }
             }
+            ctrl.engine.reset_taskbar();
             ctrl.engine.reapply_taskbar_deletion();
             LRESULT(0)
         }
@@ -4285,6 +4267,7 @@ pub fn run_daemon_with_options(
         edge_triggers_enabled: opts.enable_edge_triggers,
         tray_active,
         tray_retries_remaining: 0,
+        attention_pulse_count: 0,
         should_quit: false,
     });
     controller.sync_hotkeys();
